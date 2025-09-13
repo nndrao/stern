@@ -71,7 +71,7 @@ export async function createApp(): Promise<express.Application> {
   });
 
   // Health check endpoint
-  app.get('/health', (req, res) => {
+  app.get('/health', (_req, res) => {
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -110,7 +110,7 @@ export async function createApp(): Promise<express.Application> {
   });
 
   // Global error handler
-  app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  app.use((error: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     logger.error('Unhandled error', {
       error: error.message,
       stack: error.stack,

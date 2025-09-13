@@ -26,7 +26,7 @@ export const createMockUnifiedConfig = (overrides: Partial<UnifiedConfig> = {}):
     appId: 'test-app',
     userId: 'test-user',
     componentType: COMPONENT_TYPES.DATA_GRID,
-    componentSubType: 'financial-grid',
+    componentSubType: 'custom',
     name: 'Test Configuration',
     description: 'Test configuration for unit tests',
     icon: 'grid-icon',

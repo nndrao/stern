@@ -35,8 +35,8 @@ export const unifiedConfigSchema = Joi.object({
   lastUpdatedBy: Joi.string().min(1).max(100).required(),
   creationTime: Joi.date().required(),
   lastUpdated: Joi.date().required(),
-  deletedAt: Joi.date().optional(),
-  deletedBy: Joi.string().max(100).optional()
+  deletedAt: Joi.date().allow(null).optional(),
+  deletedBy: Joi.string().max(100).allow(null).optional()
 });
 
 export const createConfigSchema = unifiedConfigSchema.fork(
@@ -105,7 +105,7 @@ export const bulkUpdateSchema = Joi.object({
   updates: Joi.array().items(
     Joi.object({
       configId: Joi.string().uuid().required(),
-      updates: updateConfigSchema.required()
+      updates: updateConfigSchema
     })
   ).min(1).max(50).required()
 });

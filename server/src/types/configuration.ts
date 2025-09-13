@@ -34,8 +34,8 @@ export interface UnifiedConfig {
   lastUpdated: Date;          // ISO timestamp
   
   // === Soft Delete ===
-  deletedAt?: Date;           // Soft delete timestamp
-  deletedBy?: string;         // User who deleted
+  deletedAt?: Date | null;    // Soft delete timestamp
+  deletedBy?: string | null;  // User who deleted
 }
 
 export interface ConfigVersion {
@@ -98,7 +98,7 @@ export interface StorageHealthStatus {
   lastChecked: Date;
   responseTime: number;
   errorMessage?: string;
-  storageType: 'sqlite' | 'mongodb';
+  storageType: 'sqlite' | 'mongodb' | 'mock';
 }
 
 export interface BulkUpdateRequest {
@@ -114,13 +114,15 @@ export interface BulkUpdateResult {
 
 export interface CleanupResult {
   removedCount: number;
-  configs?: UnifiedConfig[];
+  configs?: UnifiedConfig[] | undefined;
+  dryRun?: boolean;
 }
 
 // Component type constants
 export const COMPONENT_TYPES = {
   DATASOURCE: 'datasource',
-  GRID: 'grid', 
+  GRID: 'grid',
+  DATA_GRID: 'data-grid',
   PROFILE: 'profile',
   WORKSPACE: 'workspace',
   THEME: 'theme',

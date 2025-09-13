@@ -43,6 +43,7 @@ export class SqliteStorage implements IConfigurationStorage {
   async disconnect(): Promise<void> {
     if (this.db) {
       this.db.close();
+      this.db = null as any; // Set to null so healthCheck can detect disconnected state
     }
   }
 
@@ -109,9 +110,9 @@ export class SqliteStorage implements IConfigurationStorage {
         config.activeSetting,
         config.tags ? JSON.stringify(config.tags) : null,
         config.category || null,
-        config.isShared || false,
-        config.isDefault || false,
-        config.isLocked || false,
+        config.isShared ? 1 : 0,
+        config.isDefault ? 1 : 0,
+        config.isLocked ? 1 : 0,
         config.createdBy,
         config.lastUpdatedBy,
         config.creationTime.toISOString(),
@@ -129,8 +130,11 @@ export class SqliteStorage implements IConfigurationStorage {
     }
   }
 
-  async findById(configId: string): Promise<UnifiedConfig | null> {
-    const stmt = this.db.prepare('SELECT * FROM configurations WHERE configId = ? AND deletedAt IS NULL');
+  async findById(configId: string, includeDeleted = false): Promise<UnifiedConfig | null> {
+    const whereClause = includeDeleted 
+      ? 'WHERE configId = ?' 
+      : 'WHERE configId = ? AND deletedAt IS NULL';
+    const stmt = this.db.prepare(`SELECT * FROM configurations ${whereClause}`);
     const row = stmt.get(configId);
     return row ? this.deserializeConfig(row) : null;
   }
@@ -170,9 +174,9 @@ export class SqliteStorage implements IConfigurationStorage {
       updated.activeSetting,
       updated.tags ? JSON.stringify(updated.tags) : null,
       updated.category || null,
-      updated.isShared || false,
-      updated.isDefault || false,
-      updated.isLocked || false,
+      updated.isShared ? 1 : 0,
+      updated.isDefault ? 1 : 0,
+      updated.isLocked ? 1 : 0,
       updated.lastUpdatedBy,
       updated.lastUpdated.toISOString(),
       configId
@@ -204,14 +208,15 @@ export class SqliteStorage implements IConfigurationStorage {
       ...sourceConfig,
       configId: uuidv4(),
       name: newName,
+      userId: userId,
       createdBy: userId,
       lastUpdatedBy: userId,
       creationTime: new Date(),
       lastUpdated: new Date(),
       isDefault: false,  // Clones are never default
       isLocked: false,   // Clones are never locked
-      deletedAt: undefined,
-      deletedBy: undefined
+      deletedAt: null,
+      deletedBy: null
     };
 
     return this.create(clonedConfig);
@@ -312,9 +317,9 @@ export class SqliteStorage implements IConfigurationStorage {
           config.activeSetting,
           config.tags ? JSON.stringify(config.tags) : null,
           config.category || null,
-          config.isShared || false,
-          config.isDefault || false,
-          config.isLocked || false,
+          config.isShared ? 1 : 0,
+          config.isDefault ? 1 : 0,
+          config.isLocked ? 1 : 0,
           config.createdBy,
           config.lastUpdatedBy,
           config.creationTime.toISOString(),
@@ -407,7 +412,8 @@ export class SqliteStorage implements IConfigurationStorage {
     
     return {
       removedCount: toDelete.length,
-      configs: dryRun ? configs : undefined
+      configs: dryRun ? configs : undefined,
+      dryRun
     };
   }
 
@@ -415,11 +421,22 @@ export class SqliteStorage implements IConfigurationStorage {
     const startTime = Date.now();
     
     try {
+      // Check if database is disconnected
+      if (!this.db) {
+        return {
+          isHealthy: false,
+          connectionStatus: 'disconnected',
+          lastChecked: new Date(),
+          responseTime: Date.now() - startTime,
+          storageType: 'sqlite'
+        };
+      }
+      
       // Test basic database connectivity
       const stmt = this.db.prepare('SELECT COUNT(*) as count FROM configurations');
       stmt.get();
       
-      const responseTime = Date.now() - startTime;
+      const responseTime = Math.max(1, Date.now() - startTime); // Ensure minimum 1ms
       
       return {
         isHealthy: true,
@@ -549,8 +566,8 @@ export class SqliteStorage implements IConfigurationStorage {
       lastUpdatedBy: row.lastUpdatedBy,
       creationTime: new Date(row.creationTime),
       lastUpdated: new Date(row.lastUpdated),
-      deletedAt: row.deletedAt ? new Date(row.deletedAt) : undefined,
-      deletedBy: row.deletedBy
+      deletedAt: row.deletedAt ? new Date(row.deletedAt) : null,
+      deletedBy: row.deletedBy || null
     };
   }
 }

@@ -87,12 +87,13 @@ export class MongoDbStorage implements IConfigurationStorage {
     }
   }
 
-  async findById(configId: string): Promise<UnifiedConfig | null> {
-    const result = await this.collection.findOne({ 
-      configId, 
-      deletedAt: { $exists: false } 
-    } as any);
+  async findById(configId: string, includeDeleted = false): Promise<UnifiedConfig | null> {
+    const filter: any = { configId };
+    if (!includeDeleted) {
+      filter.deletedAt = { $exists: false };
+    }
     
+    const result = await this.collection.findOne(filter);
     return result ? this.sanitizeDocument(result) : null;
   }
 
@@ -148,8 +149,8 @@ export class MongoDbStorage implements IConfigurationStorage {
       lastUpdated: new Date(),
       isDefault: false,
       isLocked: false,
-      deletedAt: undefined,
-      deletedBy: undefined
+      deletedAt: null,
+      deletedBy: null
     };
 
     return this.create(clonedConfig);
@@ -278,7 +279,6 @@ export class MongoDbStorage implements IConfigurationStorage {
 
   async bulkDelete(configIds: string[]): Promise<BulkUpdateResult[]> {
     const results: BulkUpdateResult[] = [];
-    const now = new Date();
     
     const promises = configIds.map(async (configId) => {
       try {
@@ -328,7 +328,8 @@ export class MongoDbStorage implements IConfigurationStorage {
     
     return {
       removedCount: toDelete.length,
-      configs: dryRun ? configs : undefined
+      configs: dryRun ? configs : undefined,
+      dryRun
     };
   }
 
@@ -446,23 +447,29 @@ export class MongoDbStorage implements IConfigurationStorage {
       if (criteria.hasVersions) {
         filter.settings = { $exists: true, $ne: [], $not: { $size: 0 } };
       } else {
-        filter.$or = [
-          { settings: { $exists: false } },
-          { settings: [] },
-          { settings: { $size: 0 } }
-        ];
+        filter.$and = filter.$and || [];
+        filter.$and.push({
+          $or: [
+            { settings: { $exists: false } },
+            { settings: [] },
+            { settings: { $size: 0 } }
+          ]
+        });
       }
     }
 
     if (criteria.activeSettingExists !== undefined) {
       if (criteria.activeSettingExists) {
-        filter.activeSetting = { $exists: true, $ne: null, $ne: '' };
+        filter.activeSetting = { $exists: true, $ne: null, $nin: [''] };
       } else {
-        filter.$or = [
-          { activeSetting: { $exists: false } },
-          { activeSetting: null },
-          { activeSetting: '' }
-        ];
+        filter.$and = filter.$and || [];
+        filter.$and.push({
+          $or: [
+            { activeSetting: { $exists: false } },
+            { activeSetting: null },
+            { activeSetting: '' }
+          ]
+        });
       }
     }
 

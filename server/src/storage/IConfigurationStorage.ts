@@ -15,7 +15,7 @@ import {
 export interface IConfigurationStorage {
   // Basic CRUD Operations
   create(config: UnifiedConfig): Promise<UnifiedConfig>;
-  findById(configId: string): Promise<UnifiedConfig | null>;
+  findById(configId: string, includeDeleted?: boolean): Promise<UnifiedConfig | null>;
   update(configId: string, updates: Partial<UnifiedConfig>): Promise<UnifiedConfig>;
   delete(configId: string): Promise<boolean>;
   

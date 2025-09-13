@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { ConfigurationService } from '../../services/ConfigurationService';
 import { IConfigurationStorage } from '../../storage/IConfigurationStorage';
-import { createMockUnifiedConfig, createMultipleMockConfigs, createMockBulkUpdate } from '../utils/testData';
+import { createMockUnifiedConfig, createMultipleMockConfigs } from '../utils/testData';
 import { UnifiedConfig, BulkUpdateResult, StorageHealthStatus, CleanupResult } from '../../types/configuration';
 
 // Mock storage implementation
@@ -64,7 +64,7 @@ class MockStorage implements IConfigurationStorage {
       userId,
       creationTime: new Date(),
       lastUpdated: new Date(),
-      deletedAt: undefined
+      deletedAt: null
     };
     
     this.configs.set(cloned.configId, cloned);
@@ -152,6 +152,7 @@ describe('ConfigurationService', () => {
     it('should handle initialization failure', async () => {
       const failingStorage = {
         ...mockStorage,
+        // @ts-ignore - Jest mock typing issue in strict mode
         connect: jest.fn().mockRejectedValue(new Error('Connection failed'))
       } as any;
       
@@ -230,7 +231,8 @@ describe('ConfigurationService', () => {
     });
 
     it('should handle storage errors', async () => {
-      mockStorage.findById = jest.fn().mockRejectedValue(new Error('Storage error'));
+      // @ts-ignore - Jest mock typing issue in strict mode
+      (mockStorage as any).findById = jest.fn().mockRejectedValue(new Error('Storage error'));
       
       await expect(service.findConfigurationById('test-id')).rejects.toThrow('Storage error');
     });
@@ -400,7 +402,8 @@ describe('ConfigurationService', () => {
     });
 
     it('should handle storage health check errors', async () => {
-      mockStorage.healthCheck = jest.fn().mockRejectedValue(new Error('Health check failed'));
+      // @ts-ignore - Jest mock typing issue in strict mode
+      (mockStorage as any).healthCheck = jest.fn().mockRejectedValue(new Error('Health check failed'));
       
       const status = await service.getHealthStatus();
       
@@ -422,7 +425,8 @@ describe('ConfigurationService', () => {
     });
 
     it('should handle cleanup errors', async () => {
-      mockStorage.cleanup = jest.fn().mockRejectedValue(new Error('Cleanup failed'));
+      // @ts-ignore - Jest mock typing issue in strict mode
+      (mockStorage as any).cleanup = jest.fn().mockRejectedValue(new Error('Cleanup failed'));
       
       await expect(service.cleanupDeletedConfigurations()).rejects.toThrow('Cleanup failed');
     });

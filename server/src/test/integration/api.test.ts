@@ -42,8 +42,13 @@ describe('Configuration API Integration Tests', () => {
   describe('Configuration CRUD Operations', () => {
     let testConfig: any;
 
-    beforeEach(() => {
+    beforeEach(async () => {
       testConfig = createMockUnifiedConfig();
+      
+      // Clear database before each test
+      await request(app).delete('/api/v1/configurations/test/clear').expect(() => {
+        // Ignore errors if endpoint doesn't exist yet
+      });
     });
 
     it('POST /api/v1/configurations should create new configuration', async () => {
@@ -186,7 +191,12 @@ describe('Configuration API Integration Tests', () => {
 
   describe('Query Operations', () => {
     beforeEach(async () => {
-      // Create test configurations
+      // Clear database before each test
+      await request(app).delete('/api/v1/configurations/test/clear').expect(() => {
+        // Ignore errors if endpoint doesn't exist yet
+      });
+      
+      // Then create test configurations
       const configs = [
         createMockUnifiedConfig({ appId: 'app1', userId: 'user1', name: 'Config 1' }),
         createMockUnifiedConfig({ appId: 'app1', userId: 'user2', name: 'Config 2' }),
@@ -253,6 +263,13 @@ describe('Configuration API Integration Tests', () => {
   });
 
   describe('Bulk Operations', () => {
+    beforeEach(async () => {
+      // Clear database before each test
+      await request(app).delete('/api/v1/configurations/test/clear').expect(() => {
+        // Ignore errors if endpoint doesn't exist yet
+      });
+    });
+
     it('POST /api/v1/configurations/bulk should create multiple configurations', async () => {
       const configs = [
         createMockUnifiedConfig({ name: 'Bulk Config 1' }),

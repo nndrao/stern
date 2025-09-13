@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { SqliteStorage } from '../../storage/SqliteStorage';
-import { createMockUnifiedConfig, createMultipleMockConfigs, createMockFilter } from '../utils/testData';
+import { createMockUnifiedConfig, createMultipleMockConfigs } from '../utils/testData';
 import { COMPONENT_TYPES } from '../../types/configuration';
 
 describe('SqliteStorage', () => {
@@ -38,7 +38,7 @@ describe('SqliteStorage', () => {
       
       const result = await storage.create(config);
       
-      expect(result).toMatchObject(config);
+      expect(result).toMatchObject(config as any);
       expect(result.configId).toBe(config.configId);
     });
 

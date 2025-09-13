@@ -25,29 +25,19 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
   };
 
   // Validation middleware
-  const validateBody = (schema: any) => (req: Request, res: Response, next: NextFunction) => {
+  const validateBody = (schema: any) => (req: Request, res: Response, next: NextFunction): void => {
     const { error, value } = schema.validate(req.body);
     if (error) {
-      return res.status(400).json({
+      res.status(400).json({
         error: 'Validation failed',
         details: error.details.map((d: any) => d.message)
       });
+      return;
     }
     req.body = value;
     next();
   };
 
-  const validateQuery = (schema: any) => (req: Request, res: Response, next: NextFunction) => {
-    const { error, value } = schema.validate(req.query);
-    if (error) {
-      return res.status(400).json({
-        error: 'Query validation failed',
-        details: error.details.map((d: any) => d.message)
-      });
-    }
-    req.query = value;
-    next();
-  };
 
   // Basic CRUD Operations
 
@@ -68,6 +58,56 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
     })
   );
 
+  // Bulk Operations
+
+  /**
+   * POST /api/v1/configurations/bulk
+   * Bulk create configurations
+   */
+  router.post('/bulk',
+    validateBody(bulkCreateSchema),
+    asyncHandler(async (req: Request, res: Response) => {
+      const { configs } = req.body;
+      
+      logger.info('Bulk creating configurations', { count: configs.length });
+
+      const result = await configService.bulkCreateConfigurations(configs);
+      return res.status(201).json(result);
+    })
+  );
+
+  /**
+   * PUT /api/v1/configurations/bulk
+   * Bulk update configurations
+   */
+  router.put('/bulk',
+    validateBody(bulkUpdateSchema),
+    asyncHandler(async (req: Request, res: Response) => {
+      const { updates } = req.body;
+      
+      logger.info('Bulk updating configurations', { count: updates.length });
+
+      const result = await configService.bulkUpdateConfigurations(updates);
+      return res.json(result);
+    })
+  );
+
+  /**
+   * DELETE /api/v1/configurations/bulk
+   * Bulk delete configurations
+   */
+  router.delete('/bulk',
+    validateBody(bulkDeleteSchema),
+    asyncHandler(async (req: Request, res: Response) => {
+      const { configIds } = req.body;
+      
+      logger.info('Bulk deleting configurations', { count: configIds.length });
+
+      const result = await configService.bulkDeleteConfigurations(configIds);
+      return res.json({ results: result });
+    })
+  );
+
   /**
    * GET /api/v1/configurations/:configId
    * Get configuration by ID
@@ -81,7 +121,8 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
       const result = await configService.findConfigurationById(configId);
       
       if (!result) {
-        return res.status(404).json({ error: 'Configuration not found' });
+        res.status(404).json({ error: 'Configuration not found' });
+        return;
       }
       
       res.json(result);
@@ -101,7 +142,7 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
 
       try {
         const result = await configService.updateConfiguration(configId, req.body);
-        res.json(result);
+        return res.json(result);
       } catch (error: any) {
         if (error.message.includes('not found')) {
           return res.status(404).json({ error: 'Configuration not found' });
@@ -127,7 +168,7 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
         return res.status(404).json({ error: 'Configuration not found' });
       }
       
-      res.json({ success: true });
+      return res.json({ success: true });
     })
   );
 
@@ -147,7 +188,7 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
 
       try {
         const result = await configService.cloneConfiguration(configId, newName, userId);
-        res.status(201).json(result);
+        return res.status(201).json(result);
       } catch (error: any) {
         if (error.message.includes('not found')) {
           return res.status(404).json({ error: 'Configuration not found' });
@@ -207,7 +248,7 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
 
       // Regular query without pagination
       const result = await configService.queryConfigurations(filter);
-      res.json(result);
+      return res.json(result);
     })
   );
 
@@ -269,56 +310,6 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
     })
   );
 
-  // Bulk Operations
-
-  /**
-   * POST /api/v1/configurations/bulk
-   * Bulk create configurations
-   */
-  router.post('/bulk',
-    validateBody(bulkCreateSchema),
-    asyncHandler(async (req: Request, res: Response) => {
-      const { configs } = req.body;
-      
-      logger.info('Bulk creating configurations', { count: configs.length });
-
-      const result = await configService.bulkCreateConfigurations(configs);
-      res.status(201).json(result);
-    })
-  );
-
-  /**
-   * PUT /api/v1/configurations/bulk
-   * Bulk update configurations
-   */
-  router.put('/bulk',
-    validateBody(bulkUpdateSchema),
-    asyncHandler(async (req: Request, res: Response) => {
-      const { updates } = req.body;
-      
-      logger.info('Bulk updating configurations', { count: updates.length });
-
-      const result = await configService.bulkUpdateConfigurations(updates);
-      res.json(result);
-    })
-  );
-
-  /**
-   * DELETE /api/v1/configurations/bulk
-   * Bulk delete configurations
-   */
-  router.delete('/bulk',
-    validateBody(bulkDeleteSchema),
-    asyncHandler(async (req: Request, res: Response) => {
-      const { configIds } = req.body;
-      
-      logger.info('Bulk deleting configurations', { count: configIds.length });
-
-      const result = await configService.bulkDeleteConfigurations(configIds);
-      res.json({ results: result });
-    })
-  );
-
   // System Operations
 
   /**
@@ -326,7 +317,7 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
    * Get system health status
    */
   router.get('/system/health',
-    asyncHandler(async (req: Request, res: Response) => {
+    asyncHandler(async (_req: Request, res: Response) => {
       const result = await configService.getHealthStatus();
       
       const statusCode = result.isHealthy ? 200 : 503;
@@ -349,6 +340,24 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
       res.json(result);
     })
   );
+
+  // Test helper endpoint - only available in test environment
+  if (process.env.NODE_ENV === 'test') {
+    router.delete('/test/clear',
+      asyncHandler(async (_req: Request, res: Response) => {
+        logger.info('Clearing test database');
+        
+        // Access the storage directly to clear all data
+        const storage = (configService as any).storage;
+        if (storage && typeof storage.db?.exec === 'function') {
+          storage.db.exec('DELETE FROM configurations');
+          return res.json({ success: true, message: 'Database cleared' });
+        }
+        
+        return res.json({ success: false, message: 'Cannot clear database' });
+      })
+    );
+  }
 
   return router;
 }

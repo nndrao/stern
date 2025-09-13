@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect } from '@jest/globals';
 import { ValidationUtils } from '../../utils/validation';
 import { createMockUnifiedConfig, createMockConfigVersion } from './testData';
 import { COMPONENT_TYPES } from '../../types/configuration';
@@ -214,7 +214,7 @@ describe('ValidationUtils', () => {
 
     it('should catch business rule violations', () => {
       const config = createMockUnifiedConfig({
-        activeSetting: 'non-existent-id'
+        activeSetting: '12345678-1234-1234-1234-123456789012' // Valid UUID format but non-existent
       });
       
       const error = ValidationUtils.validateCompleteConfig(config);
