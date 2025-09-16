@@ -7,6 +7,8 @@ import { register as registerHome } from './home';
 import { register as registerStore } from './store';
 import { register as registerNotifications } from './notifications';
 import { launchApp } from './launch';
+import { THEME_PALETTES } from './theme-palettes';
+import themeService from './theme-service';
 import type { CustomSettings, PlatformSettings } from './shapes';
 
 let isInitialized = false;
@@ -89,12 +91,11 @@ async function initializeWorkspacePlatform(platformSettings: PlatformSettings): 
     },
     theme: [
       {
-        label: "Default",
-        default: "dark",
-        palette: {
-          brandPrimary: "#0A76D3",
-          brandSecondary: "#383A40",
-          backgroundPrimary: "#1E1F23"
+        label: "Stern Trading Theme",
+        default: "light",
+        palettes: {
+          light: THEME_PALETTES.light,
+          dark: THEME_PALETTES.dark
         }
       }
     ],
@@ -105,6 +106,46 @@ async function initializeWorkspacePlatform(platformSettings: PlatformSettings): 
           e.callerType === CustomActionCallerType.CustomDropdownItem
         ) {
           await launchApp(e.customData as App);
+        }
+      },
+      "set-theme-light": async (e): Promise<void> => {
+        console.log("[THEME_TOGGLE] Custom action 'set-theme-light' triggered");
+        console.log("[THEME_TOGGLE] Caller type:", e.callerType);
+
+        if (e.callerType === CustomActionCallerType.CustomDropdownItem ||
+            e.callerType === CustomActionCallerType.CustomButton) {
+          try {
+            console.log("[THEME_TOGGLE] Setting theme to light");
+            await themeService.setTheme('light');
+            logMessage("Theme set to light mode");
+            console.log("[THEME_TOGGLE] Light theme action completed successfully");
+          } catch (error) {
+            const errorMessage = `Failed to set light theme: ${error instanceof Error ? error.message : error}`;
+            logMessage(errorMessage);
+            console.error("[THEME_TOGGLE] Light theme action failed:", errorMessage, error);
+          }
+        } else {
+          console.warn("[THEME_TOGGLE] Invalid caller type for light theme action, received:", e.callerType);
+        }
+      },
+      "set-theme-dark": async (e): Promise<void> => {
+        console.log("[THEME_TOGGLE] Custom action 'set-theme-dark' triggered");
+        console.log("[THEME_TOGGLE] Caller type:", e.callerType);
+
+        if (e.callerType === CustomActionCallerType.CustomDropdownItem ||
+            e.callerType === CustomActionCallerType.CustomButton) {
+          try {
+            console.log("[THEME_TOGGLE] Setting theme to dark");
+            await themeService.setTheme('dark');
+            logMessage("Theme set to dark mode");
+            console.log("[THEME_TOGGLE] Dark theme action completed successfully");
+          } catch (error) {
+            const errorMessage = `Failed to set dark theme: ${error instanceof Error ? error.message : error}`;
+            logMessage(errorMessage);
+            console.error("[THEME_TOGGLE] Dark theme action failed:", errorMessage, error);
+          }
+        } else {
+          console.warn("[THEME_TOGGLE] Invalid caller type for dark theme action, received:", e.callerType);
         }
       }
     }
@@ -182,6 +223,16 @@ async function initializeWorkspaceComponents(
   } catch (error) {
     console.error("Error creating main window:", error);
     logMessage(`Error creating main window: ${error instanceof Error ? error.message : error}`);
+  }
+
+  // Initialize theme service after all components are ready
+  try {
+    logMessage("Initializing theme service...");
+    await themeService.initialize();
+    logMessage("Theme service initialized successfully");
+  } catch (error) {
+    console.error("Error initializing theme service:", error);
+    logMessage(`Error initializing theme service: ${error instanceof Error ? error.message : error}`);
   }
 
   // When the platform requests to be close we deregister from workspace components and quit

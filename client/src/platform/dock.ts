@@ -32,6 +32,28 @@ export async function register(
               customData: app
             }
           }))
+        },
+        {
+          type: "DropdownButton" as DockButtonNames.DropdownButton,
+          tooltip: "Theme Settings",
+          id: "theme-selector",
+          iconUrl: platformSettings.icon, // Use platform icon as neutral theme icon
+          options: [
+            {
+              tooltip: "Light Theme",
+              iconUrl: "http://localhost:5173/icons/theme-toggle-light.svg",
+              action: {
+                id: "set-theme-light"
+              }
+            },
+            {
+              tooltip: "Dark Theme",
+              iconUrl: "http://localhost:5173/icons/theme-toggle-dark.svg",
+              action: {
+                id: "set-theme-dark"
+              }
+            }
+          ]
         }
       ]
     });
