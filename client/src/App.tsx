@@ -3,10 +3,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ThemeToggle } from "@/components/theme-toggle";
 import { PlatformProvider, usePlatform } from "@/contexts/PlatformContext";
 import { useOpenFin } from "@/hooks/useOpenFin";
+import { useOpenFinTheme } from "@/hooks/useOpenFinTheme";
 
 function SternApp() {
   const { isOpenFin, settings } = usePlatform();
   const openFin = useOpenFin();
+
+  // Initialize theme synchronization between OpenFin workspace and React app
+  useOpenFinTheme();
 
   const handleTestBlotterWindow = async () => {
     if (openFin.isInitialized) {

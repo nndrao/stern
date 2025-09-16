@@ -93,7 +93,7 @@ async function initializeWorkspacePlatform(platformSettings: PlatformSettings): 
       {
         label: "Stern Trading Theme",
         default: "light",
-        palettes: {
+        palette: {
           light: THEME_PALETTES.light,
           dark: THEME_PALETTES.dark
         }
@@ -201,25 +201,36 @@ async function initializeWorkspaceComponents(
     logMessage(`Error initializing notifications component: ${error instanceof Error ? error.message : error}`);
   }
 
-  // Create the main application window (separate from workspace components)
+  // Create the main application window as a workspace browser window (supports theming)
   try {
     logMessage("Creating main application window...");
-    await fin.Window.create({
-      name: 'stern-main-window',
+    const platform = fin.Platform.getCurrentSync();
+    await platform.createView({
       url: 'http://localhost:5173/',
+      name: 'stern-main-view'
+    }, {
+      name: 'stern-main-window',
       defaultLeft: 100,
       defaultTop: 100,
       defaultWidth: 1200,
       defaultHeight: 800,
-      autoShow: true,
-      frame: true,
-      icon: platformSettings.icon,
       minWidth: 800,
       minHeight: 600,
       defaultCentered: true,
       saveWindowState: true,
+      icon: platformSettings.icon,
+      workspacePlatform: {
+        pages: [{
+          title: 'Stern Trading Platform',
+          favicon: platformSettings.icon
+        }],
+        favicon: platformSettings.icon,
+        toolbarOptions: {
+          buttons: []
+        }
+      }
     });
-    logMessage("Main window created successfully");
+    logMessage("Main workspace window created successfully");
   } catch (error) {
     console.error("Error creating main window:", error);
     logMessage(`Error creating main window: ${error instanceof Error ? error.message : error}`);

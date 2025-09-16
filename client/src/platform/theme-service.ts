@@ -66,16 +66,11 @@ class ThemeService {
         try {
           console.log(`[THEME_TOGGLE] Calling setSelectedScheme with theme: ${theme}`);
 
-          // Use a timeout to prevent hanging, but actually call the API
-          const themePromise = workspacePlatform.Theme.setSelectedScheme(theme as any);
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Theme API call timed out after 3 seconds')), 3000)
-          );
-
-          await Promise.race([themePromise, timeoutPromise]);
-          console.log(`[THEME_TOGGLE] setSelectedScheme completed successfully`);
+          // Use the scheme name directly (light or dark) as defined in our palette
+          await workspacePlatform.Theme.setSelectedScheme(theme);
+          console.log(`[THEME_TOGGLE] setSelectedScheme completed successfully with theme: ${theme}`);
         } catch (error) {
-          console.warn(`[THEME_TOGGLE] setSelectedScheme failed or timed out:`, error);
+          console.warn(`[THEME_TOGGLE] setSelectedScheme failed:`, error);
           // Continue anyway - the theme state is still updated
         }
       } else {

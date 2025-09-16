@@ -1,5 +1,6 @@
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
+import { useOpenFinTheme } from "@/hooks/useOpenFinTheme"
 
 import { Toggle } from "@/components/ui/toggle"
 import {
@@ -11,6 +12,7 @@ import {
 
 export function ThemeToggle() {
   const { setTheme } = useTheme()
+  const { setTheme: setWorkspaceTheme, isOpenFin } = useOpenFinTheme()
 
   return (
     <DropdownMenu>
@@ -21,15 +23,17 @@ export function ThemeToggle() {
         </Toggle>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>
+        <DropdownMenuItem onClick={() => isOpenFin ? setWorkspaceTheme("light") : setTheme("light")}>
           Light
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>
+        <DropdownMenuItem onClick={() => isOpenFin ? setWorkspaceTheme("dark") : setTheme("dark")}>
           Dark
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>
-          System
-        </DropdownMenuItem>
+        {!isOpenFin && (
+          <DropdownMenuItem onClick={() => setTheme("system")}>
+            System
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

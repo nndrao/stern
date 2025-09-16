@@ -28,7 +28,13 @@ export const THEME_PALETTES: Record<string, CustomPaletteSet> = {
     textHelp: '#6B7280',
     textInactive: '#9CA3AF',
     linkDefault: '#3B82F6',
-    linkHover: '#2563EB'
+    linkHover: '#2563EB',
+    // Chrome/Window specific colors
+    chromeBase: '#FFFFFF',
+    chromeBorder: '#E5E7EB',
+    chromeText: '#111827',
+    chromeButtonBase: '#F9FAFB',
+    chromeButtonHover: '#F3F4F6'
   },
   dark: {
     brandPrimary: '#0066CC', // Stern brand primary from manifest
@@ -53,7 +59,13 @@ export const THEME_PALETTES: Record<string, CustomPaletteSet> = {
     textHelp: '#D1D5DB',
     textInactive: '#6B7280',
     linkDefault: '#60A5FA',
-    linkHover: '#93C5FD'
+    linkHover: '#93C5FD',
+    // Chrome/Window specific colors for dark mode
+    chromeBase: '#1e293b',
+    chromeBorder: '#475569',
+    chromeText: '#F9FAFB',
+    chromeButtonBase: '#334155',
+    chromeButtonHover: '#475569'
   }
 };
 
