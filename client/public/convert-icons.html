@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icon Converter</title>
+    <style>
+        body { background: #222; color: white; font-family: Arial, sans-serif; padding: 20px; }
+        canvas { border: 1px solid #666; margin: 10px; }
+        .icon-section { margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>Stern Trading Platform - Icon Converter</h1>
+
+    <div class="icon-section">
+        <h2>App Icon (512x512)</h2>
+        <canvas id="app-icon" width="512" height="512"></canvas>
+        <br>
+        <button onclick="downloadAppIcon()">Download PNG</button>
+    </div>
+
+    <div class="icon-section">
+        <h2>Favicon (32x32)</h2>
+        <canvas id="favicon" width="32" height="32"></canvas>
+        <br>
+        <button onclick="downloadFavicon()">Download PNG</button>
+    </div>
+
+    <script>
+        // App Icon SVG
+        const appIconSvg = `<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="pink-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff3d71"/>
+      <stop offset="100%" stop-color="#e91e63"/>
+    </linearGradient>
+    <linearGradient id="blue-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4fc3f7"/>
+      <stop offset="100%" stop-color="#2196f3"/>
+    </linearGradient>
+    <linearGradient id="green-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#66bb6a"/>
+      <stop offset="100%" stop-color="#4caf50"/>
+    </linearGradient>
+    <linearGradient id="purple-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ab47bc"/>
+      <stop offset="100%" stop-color="#9c27b0"/>
+    </linearGradient>
+    <linearGradient id="cyan-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#26c6da"/>
+      <stop offset="100%" stop-color="#00bcd4"/>
+    </linearGradient>
+    <linearGradient id="orange-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffa726"/>
+      <stop offset="100%" stop-color="#ff9800"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="#0a0a0a"/>
+  <g transform="translate(256,256)">
+    <polygon points="0,-40 34.6,-20 34.6,20 0,40 -34.6,20 -34.6,-20" fill="url(#pink-gradient)" opacity="0.9"/>
+    <polygon points="0,-40 20,-80 -20,-80" fill="url(#blue-gradient)" opacity="0.8"/>
+    <polygon points="0,-40 40,-60 20,-80" fill="url(#cyan-gradient)" opacity="0.7"/>
+    <polygon points="0,-40 -40,-60 -20,-80" fill="url(#purple-gradient)" opacity="0.7"/>
+    <polygon points="34.6,-20 80,-20 60,-60" fill="url(#green-gradient)" opacity="0.8"/>
+    <polygon points="34.6,20 80,20 60,60" fill="url(#orange-gradient)" opacity="0.8"/>
+    <polygon points="34.6,-20 60,-60 80,-20" fill="url(#blue-gradient)" opacity="0.6"/>
+    <polygon points="0,40 20,80 -20,80" fill="url(#purple-gradient)" opacity="0.8"/>
+    <polygon points="0,40 40,60 20,80" fill="url(#pink-gradient)" opacity="0.7"/>
+    <polygon points="0,40 -40,60 -20,80" fill="url(#cyan-gradient)" opacity="0.7"/>
+    <polygon points="-34.6,-20 -80,-20 -60,-60" fill="url(#orange-gradient)" opacity="0.8"/>
+    <polygon points="-34.6,20 -80,20 -60,60" fill="url(#blue-gradient)" opacity="0.8"/>
+    <polygon points="-34.6,-20 -60,-60 -80,-20" fill="url(#green-gradient)" opacity="0.6"/>
+    <polygon points="34.6,-20 60,-40 40,-60" fill="url(#pink-gradient)" opacity="0.5"/>
+    <polygon points="34.6,20 60,40 40,60" fill="url(#cyan-gradient)" opacity="0.5"/>
+    <polygon points="-34.6,-20 -60,-40 -40,-60" fill="url(#green-gradient)" opacity="0.5"/>
+    <polygon points="-34.6,20 -60,40 -40,60" fill="url(#purple-gradient)" opacity="0.5"/>
+    <polygon points="0,-40 15,-55 -15,-55" fill="url(#cyan-gradient)" opacity="0.6"/>
+    <polygon points="34.6,-20 49.6,-35 34.6,-35" fill="url(#purple-gradient)" opacity="0.6"/>
+    <polygon points="34.6,20 49.6,35 34.6,35" fill="url(#blue-gradient)" opacity="0.6"/>
+    <polygon points="0,40 15,55 -15,55" fill="url(#orange-gradient)" opacity="0.6"/>
+    <polygon points="-34.6,20 -49.6,35 -34.6,35" fill="url(#pink-gradient)" opacity="0.6"/>
+    <polygon points="-34.6,-20 -49.6,-35 -34.6,-35" fill="url(#green-gradient)" opacity="0.6"/>
+    <polygon points="0,-20 17.3,-10 17.3,10 0,20 -17.3,10 -17.3,-10" fill="url(#cyan-gradient)" opacity="0.3"/>
+    <polygon points="0,-10 8.7,-5 8.7,5 0,10 -8.7,5 -8.7,-5" fill="#ffffff" opacity="0.2"/>
+  </g>
+  <g opacity="0.1">
+    <polygon points="100,100 150,75 150,125" fill="url(#pink-gradient)"/>
+    <polygon points="412,100 362,75 362,125" fill="url(#blue-gradient)"/>
+    <polygon points="100,412 150,387 150,437" fill="url(#green-gradient)"/>
+    <polygon points="412,412 362,387 362,437" fill="url(#purple-gradient)"/>
+  </g>
+</svg>`;
+
+        // Favicon SVG
+        const faviconSvg = `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="main-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff3d71"/>
+      <stop offset="50%" stop-color="#4fc3f7"/>
+      <stop offset="100%" stop-color="#66bb6a"/>
+    </linearGradient>
+    <linearGradient id="accent-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ab47bc"/>
+      <stop offset="100%" stop-color="#26c6da"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" fill="#0a0a0a"/>
+  <g transform="translate(16,16)">
+    <polygon points="0,-8 6,-4 6,4 0,8 -6,4 -6,-4" fill="url(#main-gradient)"/>
+    <polygon points="0,-8 3,-12 -3,-12" fill="url(#accent-gradient)" opacity="0.9"/>
+    <polygon points="6,-4 12,0 6,4" fill="url(#accent-gradient)" opacity="0.8"/>
+    <polygon points="0,8 3,12 -3,12" fill="url(#accent-gradient)" opacity="0.9"/>
+    <polygon points="-6,-4 -12,0 -6,4" fill="url(#accent-gradient)" opacity="0.8"/>
+    <polygon points="0,-3 2.5,-1.5 2.5,1.5 0,3 -2.5,1.5 -2.5,-1.5" fill="#ffffff" opacity="0.3"/>
+  </g>
+</svg>`;
+
+        function svgToCanvas(svgString, canvasId, callback) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+
+            const img = new Image();
+            const svgBlob = new Blob([svgString], {type: 'image/svg+xml'});
+            const url = URL.createObjectURL(svgBlob);
+
+            img.onload = function() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                URL.revokeObjectURL(url);
+                if (callback) callback();
+            };
+
+            img.src = url;
+        }
+
+        function downloadCanvas(canvasId, filename) {
+            const canvas = document.getElementById(canvasId);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function downloadAppIcon() {
+            downloadCanvas('app-icon', 'stern-app-icon-512.png');
+        }
+
+        function downloadFavicon() {
+            downloadCanvas('favicon', 'stern-favicon-32.png');
+        }
+
+        // Convert SVGs on page load
+        window.onload = function() {
+            svgToCanvas(appIconSvg, 'app-icon');
+            svgToCanvas(faviconSvg, 'favicon');
+        };
+    </script>
+</body>
+</html>

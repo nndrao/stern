@@ -1,0 +1,38 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Simplified gradients for favicon -->
+    <linearGradient id="main-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff3d71"/>
+      <stop offset="50%" stop-color="#4fc3f7"/>
+      <stop offset="100%" stop-color="#66bb6a"/>
+    </linearGradient>
+    <linearGradient id="accent-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ab47bc"/>
+      <stop offset="100%" stop-color="#26c6da"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Dark background -->
+  <rect width="32" height="32" fill="#0a0a0a"/>
+
+  <!-- Simplified geometric star -->
+  <g transform="translate(16,16)">
+    <!-- Main diamond shape -->
+    <polygon points="0,-8 6,-4 6,4 0,8 -6,4 -6,-4" fill="url(#main-gradient)"/>
+
+    <!-- Top spike -->
+    <polygon points="0,-8 3,-12 -3,-12" fill="url(#accent-gradient)" opacity="0.9"/>
+
+    <!-- Right spike -->
+    <polygon points="6,-4 12,0 6,4" fill="url(#accent-gradient)" opacity="0.8"/>
+
+    <!-- Bottom spike -->
+    <polygon points="0,8 3,12 -3,12" fill="url(#accent-gradient)" opacity="0.9"/>
+
+    <!-- Left spike -->
+    <polygon points="-6,-4 -12,0 -6,4" fill="url(#accent-gradient)" opacity="0.8"/>
+
+    <!-- Center highlight -->
+    <polygon points="0,-3 2.5,-1.5 2.5,1.5 0,3 -2.5,1.5 -2.5,-1.5" fill="#ffffff" opacity="0.3"/>
+  </g>
+</svg>

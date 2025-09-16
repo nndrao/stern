@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Icon</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            width: 64px;
+            height: 64px;
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        .icon {
+            width: 48px;
+            height: 48px;
+            position: relative;
+        }
+        .star {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 0;
+            height: 0;
+        }
+        .star:before {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: linear-gradient(45deg, #ff3d71, #4fc3f7, #66bb6a);
+            transform: translate(-50%, -50%) rotate(45deg);
+            clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+        }
+    </style>
+</head>
+<body>
+    <div class="icon">
+        <div class="star"></div>
+    </div>
+</body>
+</html>

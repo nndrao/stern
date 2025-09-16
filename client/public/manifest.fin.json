@@ -7,7 +7,7 @@
   },
   "platform": {
     "uuid": "stern-trading-platform",
-    "icon": "http://localhost:5173/favicon.ico",
+    "icon": "http://localhost:5173/stern.png",
     "autoShow": true,
     "providerUrl": "http://localhost:5173/platform/provider",
     "preventQuitOnLastWindowClosed": true
@@ -15,7 +15,7 @@
   "shortcut": {
     "company": "Stern Trading",
     "description": "Stern Trading Platform - Unified Configurable Blotter",
-    "icon": "http://localhost:5173/favicon.ico",
+    "icon": "http://localhost:5173/stern.png",
     "name": "Stern Trading Platform",
     "target": ["desktop", "start-menu"]
   },
@@ -47,7 +47,7 @@
         "manifestType": "view",
         "icons": [
           {
-            "src": "http://localhost:5173/favicon.ico"
+            "src": "http://localhost:5173/stern.png"
           }
         ],
         "contactEmail": "support@stern.com",
@@ -66,7 +66,7 @@
         "manifestType": "view",
         "icons": [
           {
-            "src": "http://localhost:5173/favicon.ico"
+            "src": "http://localhost:5173/stern.png"
           }
         ],
         "contactEmail": "support@stern.com",
