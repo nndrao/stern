@@ -67,7 +67,7 @@ class ThemeService {
           console.log(`[THEME_TOGGLE] Calling setSelectedScheme with theme: ${theme}`);
 
           // Use the scheme name directly (light or dark) as defined in our palette
-          await workspacePlatform.Theme.setSelectedScheme(theme);
+          await workspacePlatform.Theme.setSelectedScheme(theme as Parameters<typeof workspacePlatform.Theme.setSelectedScheme>[0]);
           console.log(`[THEME_TOGGLE] setSelectedScheme completed successfully with theme: ${theme}`);
         } catch (error) {
           console.warn(`[THEME_TOGGLE] setSelectedScheme failed:`, error);

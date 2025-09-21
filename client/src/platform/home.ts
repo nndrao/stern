@@ -6,7 +6,6 @@ import {
   type HomeProvider,
   type HomeRegistration,
   type HomeSearchListenerRequest,
-  type HomeSearchListenerResponse,
   type HomeSearchResponse,
   type HomeSearchResult
 } from "@openfin/workspace";
@@ -34,8 +33,7 @@ export async function register(
      * @returns The results to display in home.
      */
     onUserInput: async (
-      request: HomeSearchListenerRequest,
-      _response: HomeSearchListenerResponse
+      request: HomeSearchListenerRequest
     ): Promise<HomeSearchResponse> => {
       const queryLower = request.query.toLowerCase();
 

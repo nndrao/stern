@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { init, CustomActionCallerType } from '@openfin/workspace-platform';
-import { Dock, Home, Storefront, type App } from '@openfin/workspace';
+import { init } from '@openfin/workspace-platform';
+import { Dock, Home, Storefront } from '@openfin/workspace';
 import * as Notifications from '@openfin/workspace/notifications';
 import { register as registerDock, dockGetCustomActions } from './dock';
 import { register as registerHome } from './home';
@@ -167,10 +167,9 @@ async function initializeWorkspaceComponents(
   try {
     logMessage("Creating main application window...");
     const platform = fin.Platform.getCurrentSync();
-    await platform.createView({
-      url: 'http://localhost:5173/',
-      name: 'stern-main-view'
-    }, {
+
+    // First create the window
+    await platform.createWindow({
       name: 'stern-main-window',
       defaultLeft: 100,
       defaultTop: 100,
@@ -180,18 +179,16 @@ async function initializeWorkspaceComponents(
       minHeight: 600,
       defaultCentered: true,
       saveWindowState: true,
-      icon: platformSettings.icon,
-      workspacePlatform: {
-        pages: [{
-          title: 'Stern Trading Platform',
-          favicon: platformSettings.icon
-        }],
-        favicon: platformSettings.icon,
-        toolbarOptions: {
-          buttons: []
-        }
-      }
+      icon: platformSettings.icon
+    } as unknown as Parameters<typeof platform.createWindow>[0]);
+
+    // Then create the view in that window
+    await platform.createView({
+      url: 'http://localhost:5173/',
+      name: 'stern-main-view',
+      target: { uuid: platformSettings.id, name: 'stern-main-window' }
     });
+
     logMessage("Main workspace window created successfully");
   } catch (error) {
     console.error("Error creating main window:", error);
@@ -232,7 +229,11 @@ async function getManifestCustomSettings(): Promise<{
 }> {
   // Get the manifest for the current application
   const app = await fin.Application.getCurrent();
-  const manifest: any = await app.getManifest();
+  const manifest = await app.getManifest() as {
+    platform?: { uuid?: string; icon?: string };
+    shortcut?: { name?: string };
+    customSettings?: CustomSettings;
+  };
 
   return {
     platformSettings: {

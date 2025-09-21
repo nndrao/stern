@@ -114,7 +114,7 @@ export async function register(
  * Get custom actions for dock buttons.
  * Following OpenFin reference architecture pattern.
  */
-export function dockGetCustomActions(): Record<string, (e: any) => Promise<void>> {
+export function dockGetCustomActions(): Record<string, (e: {callerType: unknown, customData?: unknown}) => Promise<void>> {
   return {
     "launch-app": async (e): Promise<void> => {
       console.log("[DOCK] Custom action 'launch-app' triggered");
@@ -177,7 +177,11 @@ export function dockGetCustomActions(): Record<string, (e: any) => Promise<void>
 
           // Get current platform settings from manifest
           const app = await fin.Application.getCurrent();
-          const manifest: any = await app.getManifest();
+          const manifest = await app.getManifest() as {
+            platform?: { uuid?: string; icon?: string };
+            shortcut?: { name?: string };
+            customSettings?: { apps?: unknown[] };
+          };
           const platformSettings = {
             id: manifest.platform?.uuid ?? "stern-trading-platform",
             title: manifest.shortcut?.name ?? "Stern Trading Platform",
@@ -192,7 +196,7 @@ export function dockGetCustomActions(): Record<string, (e: any) => Promise<void>
           await new Promise(resolve => setTimeout(resolve, 1000));
 
           // Re-register dock with same settings
-          await register(platformSettings, manifest.customSettings?.apps);
+          await register(platformSettings, manifest.customSettings?.apps as App[]);
           console.log("[DEV_TOOLS] Dock re-registered");
 
           // Show the dock
@@ -270,7 +274,7 @@ export function dockGetCustomActions(): Record<string, (e: any) => Promise<void>
           for (const app of allApps) {
             console.log(`\nApplication: ${app.uuid}`);
             try {
-              const appWindows = await fin.System.getAllWindows([{uuid: app.uuid}]);
+              const appWindows = await fin.System.getAllWindows();
               for (const windowGroup of appWindows) {
                 if (windowGroup.mainWindow) {
                   console.log(`  Main Window: ${windowGroup.mainWindow.name || 'unnamed'}`);
@@ -282,14 +286,14 @@ export function dockGetCustomActions(): Record<string, (e: any) => Promise<void>
                 }
               }
             } catch (error) {
-              console.log(`  Error getting windows: ${error.message}`);
+              console.log(`  Error getting windows: ${error instanceof Error ? error.message : error}`);
             }
           }
 
           console.log("\n=== SIMPLE WINDOW LIST ===");
           const allWindows = await fin.System.getAllWindows();
           allWindows.forEach((window, index) => {
-            console.log(`Window ${index}: UUID=${window.uuid}, Name=${window.name || 'undefined'}`);
+            console.log(`Window ${index}: UUID=${window.uuid}, Name=${(window as {name?: string}).name || 'undefined'}`);
           });
 
           console.log("[DEV_TOOLS] All windows listed");
