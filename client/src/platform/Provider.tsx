@@ -90,7 +90,7 @@ async function initializeWorkspacePlatform(platformSettings: PlatformSettings): 
     },
     theme: [
       {
-        label: "Stern Trading Theme",
+        label: "Default",
         default: "light",
         palettes: {
           light: THEME_PALETTES.light,
@@ -115,42 +115,52 @@ async function initializeWorkspaceComponents(
 ): Promise<void> {
   logMessage("Initializing the workspace components");
 
-  try {
-    // Register with home and show it
-    logMessage("Initializing the workspace components: home");
-    await registerHome(platformSettings, customSettings?.apps);
-    await Home.show();
-  } catch (error) {
-    console.error("Error initializing home component:", error);
-    logMessage(`Error initializing home component: ${error instanceof Error ? error.message : error}`);
+  const bootstrap = customSettings?.bootstrap;
+
+  if (bootstrap?.home) {
+    try {
+      // Register with home and show it
+      logMessage("Initializing the workspace components: home");
+      await registerHome(platformSettings, customSettings?.apps);
+      await Home.show();
+    } catch (error) {
+      console.error("Error initializing home component:", error);
+      logMessage(`Error initializing home component: ${error instanceof Error ? error.message : error}`);
+    }
   }
 
-  try {
-    // Register with store
-    logMessage("Initializing the workspace components: store");
-    await registerStore(platformSettings, customSettings?.apps);
-  } catch (error) {
-    console.error("Error initializing store component:", error);
-    logMessage(`Error initializing store component: ${error instanceof Error ? error.message : error}`);
+  if (bootstrap?.store) {
+    try {
+      // Register with store
+      logMessage("Initializing the workspace components: store");
+      await registerStore(platformSettings, customSettings?.apps);
+    } catch (error) {
+      console.error("Error initializing store component:", error);
+      logMessage(`Error initializing store component: ${error instanceof Error ? error.message : error}`);
+    }
   }
 
-  try {
-    // Register with dock
-    logMessage("Initializing the workspace components: dock");
-    await registerDock(platformSettings, customSettings?.apps);
-    await Dock.show();
-  } catch (error) {
-    console.error("Error initializing dock component:", error);
-    logMessage(`Error initializing dock component: ${error instanceof Error ? error.message : error}`);
+  if (bootstrap?.dock) {
+    try {
+      // Register with dock
+      logMessage("Initializing the workspace components: dock");
+      await registerDock(platformSettings, customSettings?.apps);
+      await Dock.show();
+    } catch (error) {
+      console.error("Error initializing dock component:", error);
+      logMessage(`Error initializing dock component: ${error instanceof Error ? error.message : error}`);
+    }
   }
 
-  try {
-    // Register with notifications
-    logMessage("Initializing the workspace components: notifications");
-    await registerNotifications(platformSettings);
-  } catch (error) {
-    console.error("Error initializing notifications component:", error);
-    logMessage(`Error initializing notifications component: ${error instanceof Error ? error.message : error}`);
+  if (bootstrap?.notifications) {
+    try {
+      // Register with notifications
+      logMessage("Initializing the workspace components: notifications");
+      await registerNotifications(platformSettings);
+    } catch (error) {
+      console.error("Error initializing notifications component:", error);
+      logMessage(`Error initializing notifications component: ${error instanceof Error ? error.message : error}`);
+    }
   }
 
   // Create the main application window as a workspace browser window (supports theming)

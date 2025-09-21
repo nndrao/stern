@@ -26,15 +26,10 @@
     "forwardErrorReports": true
   },
   "customSettings": {
-    "theme": {
-      "brandPrimary": "#0066CC",
-      "brandSecondary": "#004499",
-      "backgroundPrimary": "#1e293b"
-    },
-    "features": {
+    "bootstrap": {
       "home": true,
-      "dock": true,
       "store": true,
+      "dock": true,
       "notifications": true
     },
     "apps": [
