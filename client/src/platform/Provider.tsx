@@ -2,11 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { init, CustomActionCallerType } from '@openfin/workspace-platform';
 import { Dock, Home, Storefront, type App } from '@openfin/workspace';
 import * as Notifications from '@openfin/workspace/notifications';
-import { register as registerDock } from './dock';
+import { register as registerDock, dockGetCustomActions } from './dock';
 import { register as registerHome } from './home';
 import { register as registerStore } from './store';
 import { register as registerNotifications } from './notifications';
-import { launchApp } from './launch';
 import { THEME_PALETTES } from './theme-palettes';
 import themeService from './theme-service';
 import type { CustomSettings, PlatformSettings } from './shapes';
@@ -93,61 +92,14 @@ async function initializeWorkspacePlatform(platformSettings: PlatformSettings): 
       {
         label: "Stern Trading Theme",
         default: "light",
-        palette: {
+        palettes: {
           light: THEME_PALETTES.light,
           dark: THEME_PALETTES.dark
         }
       }
     ],
     customActions: {
-      "launch-app": async (e): Promise<void> => {
-        if (
-          e.callerType === CustomActionCallerType.CustomButton ||
-          e.callerType === CustomActionCallerType.CustomDropdownItem
-        ) {
-          await launchApp(e.customData as App);
-        }
-      },
-      "set-theme-light": async (e): Promise<void> => {
-        console.log("[THEME_TOGGLE] Custom action 'set-theme-light' triggered");
-        console.log("[THEME_TOGGLE] Caller type:", e.callerType);
-
-        if (e.callerType === CustomActionCallerType.CustomDropdownItem ||
-            e.callerType === CustomActionCallerType.CustomButton) {
-          try {
-            console.log("[THEME_TOGGLE] Setting theme to light");
-            await themeService.setTheme('light');
-            logMessage("Theme set to light mode");
-            console.log("[THEME_TOGGLE] Light theme action completed successfully");
-          } catch (error) {
-            const errorMessage = `Failed to set light theme: ${error instanceof Error ? error.message : error}`;
-            logMessage(errorMessage);
-            console.error("[THEME_TOGGLE] Light theme action failed:", errorMessage, error);
-          }
-        } else {
-          console.warn("[THEME_TOGGLE] Invalid caller type for light theme action, received:", e.callerType);
-        }
-      },
-      "set-theme-dark": async (e): Promise<void> => {
-        console.log("[THEME_TOGGLE] Custom action 'set-theme-dark' triggered");
-        console.log("[THEME_TOGGLE] Caller type:", e.callerType);
-
-        if (e.callerType === CustomActionCallerType.CustomDropdownItem ||
-            e.callerType === CustomActionCallerType.CustomButton) {
-          try {
-            console.log("[THEME_TOGGLE] Setting theme to dark");
-            await themeService.setTheme('dark');
-            logMessage("Theme set to dark mode");
-            console.log("[THEME_TOGGLE] Dark theme action completed successfully");
-          } catch (error) {
-            const errorMessage = `Failed to set dark theme: ${error instanceof Error ? error.message : error}`;
-            logMessage(errorMessage);
-            console.error("[THEME_TOGGLE] Dark theme action failed:", errorMessage, error);
-          }
-        } else {
-          console.warn("[THEME_TOGGLE] Invalid caller type for dark theme action, received:", e.callerType);
-        }
-      }
+      ...dockGetCustomActions()
     }
   });
 
