@@ -19,14 +19,14 @@ export async function register(
   try {
     const metaInfo = await Dock.register({
       ...platformSettings,
-      workspaceComponents: ["home", "store", "notifications", "switchWorkspace"],
+      workspaceComponents: ["switchWorkspace"],
       disableUserRearrangement: true,
       buttons: [
         {
           type: "DropdownButton" as DockButtonNames.DropdownButton,
           tooltip: "Trading Apps",
           id: "stern-apps",
-          iconUrl: "http://localhost:5173/icons/platform-icon.svg",
+          iconUrl: "http://localhost:5173/icons/app.svg",
           options: (apps ?? []).map((app) => ({
             tooltip: app.title,
             iconUrl: app.icons?.length ? app.icons[0].src : "http://localhost:5173/icons/platform-icon.svg",
@@ -40,18 +40,18 @@ export async function register(
           type: "DropdownButton" as DockButtonNames.DropdownButton,
           tooltip: "Theme Settings",
           id: "theme-selector",
-          iconUrl: "http://localhost:5173/icons/platform-icon.svg", // Use theme-agnostic platform icon
+          iconUrl: "http://localhost:5173/icons/theme-switch.svg", // Use theme-agnostic platform icon
           options: [
             {
               tooltip: "Light Theme",
-              iconUrl: "http://localhost:5173/icons/theme-toggle-light.svg",
+              iconUrl: "http://localhost:5173/icons/light-theme.svg",
               action: {
                 id: "set-theme-light"
               }
             },
             {
               tooltip: "Dark Theme",
-              iconUrl: "http://localhost:5173/icons/theme-toggle-dark.svg",
+              iconUrl: "http://localhost:5173/icons/dark-theme.svg",
               action: {
                 id: "set-theme-dark"
               }
@@ -185,7 +185,7 @@ export function dockGetCustomActions(): Record<string, (e: {callerType: unknown,
           const platformSettings = {
             id: manifest.platform?.uuid ?? "stern-trading-platform",
             title: manifest.shortcut?.name ?? "Stern Trading Platform",
-            icon: manifest.platform?.icon ?? "http://localhost:5173/favicon.ico"
+            icon: manifest.platform?.icon ?? "http://localhost:5173/stern.svg"
           };
 
           // Deregister dock

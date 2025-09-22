@@ -17,7 +17,7 @@ function SternApp() {
       try {
         const window = await openFin.createBlotterWindow({
           name: 'test-blotter',
-          url: 'http://localhost:5176',
+          url: 'http://localhost:5173',
           bounds: { x: 200, y: 200, width: 1000, height: 600 },
           configurationId: 'test-config'
         });

@@ -239,7 +239,7 @@ async function getManifestCustomSettings(): Promise<{
     platformSettings: {
       id: manifest.platform?.uuid ?? "stern-trading-platform",
       title: manifest.shortcut?.name ?? "Stern Trading Platform",
-      icon: manifest.platform?.icon ?? "http://localhost:5173/favicon.ico"
+      icon: manifest.platform?.icon ?? "http://localhost:5173/stern.png"
     },
     customSettings: manifest.customSettings
   };
