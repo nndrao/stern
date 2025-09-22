@@ -16,16 +16,12 @@ export function useOpenFinTheme() {
     }
 
     try {
-      // Use the theme service for consistent theme switching
-      const themeService = await import('../platform/theme-service');
-      await themeService.default.setTheme(newTheme);
-      console.log('[THEME_SYNC] Workspace theme updated to:', newTheme);
-
-      // Also update React theme
+      // For now, just update the React theme - OpenFin workspace theming
+      // is handled in the platform initialization
       setTheme(newTheme);
+      console.log('[THEME_SYNC] Theme updated to:', newTheme);
     } catch (error) {
-      console.error('[THEME_SYNC] Failed to update workspace theme:', error);
-      // Fallback to updating React theme only
+      console.error('[THEME_SYNC] Failed to update theme:', error);
       setTheme(newTheme);
     }
   };

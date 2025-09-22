@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { init } from '@openfin/workspace-platform';
 import { Dock, Home, Storefront } from '@openfin/workspace';
 import * as Notifications from '@openfin/workspace/notifications';
@@ -6,25 +6,18 @@ import { register as registerDock, dockGetCustomActions } from './dock';
 import { register as registerHome } from './home';
 import { register as registerStore } from './store';
 import { register as registerNotifications } from './notifications';
-import { THEME_PALETTES } from './theme-palettes';
-import themeService from './theme-service';
 import type { CustomSettings, PlatformSettings } from './shapes';
 
 let isInitialized = false;
-let logMessage: React.Dispatch<React.SetStateAction<string>>;
 
 function Provider() {
-  const [message, setMessage] = useState("");
-
-  logMessage = setMessage;
+  const [status, setStatus] = useState("Initializing...");
 
   useEffect(() => {
     (async function () {
       if (!isInitialized) {
         isInitialized = true;
         try {
-          setMessage("Stern Trading Platform initializing...");
-
           // Load the settings from the manifest
           const settings = await getManifestCustomSettings();
 
@@ -32,42 +25,25 @@ function Provider() {
           const platform = fin.Platform.getCurrentSync();
           await platform.once("platform-api-ready", async () => {
             await initializeWorkspaceComponents(settings.platformSettings, settings.customSettings);
-            setMessage("Workspace platform initialized successfully");
+            setStatus("Ready");
           });
 
-          // CRITICAL: Initialize the workspace platform FIRST
-          // This will trigger the platform-api-ready event
+          // Initialize the workspace platform
           await initializeWorkspacePlatform(settings.platformSettings);
         } catch (err) {
-          const errorMessage = `Error Initializing Platform: ${err instanceof Error ? err.message : err}`;
-          setMessage(errorMessage);
-          console.error(errorMessage, err);
+          setStatus(`Error: ${err instanceof Error ? err.message : err}`);
+          console.error("Platform initialization error:", err);
         }
       }
     })();
   }, []);
 
   return (
-    <div className="flex flex-col h-screen bg-slate-900 text-white p-8">
-      <header className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-blue-400">Stern Trading Platform</h1>
-          <p className="text-slate-400 mt-2">OpenFin Workspace Platform Provider</p>
-        </div>
-        <div className="text-right">
-          <div className="text-sm text-slate-500">Provider Window</div>
-        </div>
-      </header>
-      <main className="flex-1 flex flex-col justify-center items-center">
-        <div className="text-center max-w-lg">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent mb-4"></div>
-          <p className="text-lg mb-4">{message}</p>
-          <div className="text-sm text-slate-400 space-y-2">
-            <p>This window initializes the OpenFin workspace platform.</p>
-            <p>It will remain hidden during normal operation.</p>
-          </div>
-        </div>
-      </main>
+    <div className="flex items-center justify-center h-screen bg-slate-900 text-white">
+      <div className="text-center">
+        <h1 className="text-2xl font-bold mb-4">Stern Trading Platform</h1>
+        <p className="text-slate-400">{status}</p>
+      </div>
     </div>
   );
 }
@@ -76,8 +52,6 @@ function Provider() {
  * Initialize the workspace platform.
  */
 async function initializeWorkspacePlatform(platformSettings: PlatformSettings): Promise<void> {
-  logMessage("Initializing workspace platform...");
-
   await init({
     browser: {
       defaultWindowOptions: {
@@ -93,8 +67,16 @@ async function initializeWorkspacePlatform(platformSettings: PlatformSettings): 
         label: "Default",
         default: "light",
         palettes: {
-          light: THEME_PALETTES.light,
-          dark: THEME_PALETTES.dark
+          light: {
+            brandPrimary: "#0F172A",
+            brandSecondary: "#1E293B",
+            backgroundPrimary: "#FFFFFF"
+          },
+          dark: {
+            brandPrimary: "#1E293B",
+            brandSecondary: "#334155",
+            backgroundPrimary: "#0F172A"
+          }
         }
       }
     ],
@@ -102,8 +84,6 @@ async function initializeWorkspacePlatform(platformSettings: PlatformSettings): 
       ...dockGetCustomActions()
     }
   });
-
-  logMessage("Workspace platform initialized");
 }
 
 /**
@@ -113,96 +93,24 @@ async function initializeWorkspaceComponents(
   platformSettings: PlatformSettings,
   customSettings?: CustomSettings
 ): Promise<void> {
-  logMessage("Initializing the workspace components");
-
   const bootstrap = customSettings?.bootstrap;
 
   if (bootstrap?.home) {
-    try {
-      // Register with home and show it
-      logMessage("Initializing the workspace components: home");
-      await registerHome(platformSettings, customSettings?.apps);
-      await Home.show();
-    } catch (error) {
-      console.error("Error initializing home component:", error);
-      logMessage(`Error initializing home component: ${error instanceof Error ? error.message : error}`);
-    }
+    await registerHome(platformSettings, customSettings?.apps);
+    await Home.show();
   }
 
   if (bootstrap?.store) {
-    try {
-      // Register with store
-      logMessage("Initializing the workspace components: store");
-      await registerStore(platformSettings, customSettings?.apps);
-    } catch (error) {
-      console.error("Error initializing store component:", error);
-      logMessage(`Error initializing store component: ${error instanceof Error ? error.message : error}`);
-    }
+    await registerStore(platformSettings, customSettings?.apps);
   }
 
   if (bootstrap?.dock) {
-    try {
-      // Register with dock
-      logMessage("Initializing the workspace components: dock");
-      await registerDock(platformSettings, customSettings?.apps);
-      await Dock.show();
-    } catch (error) {
-      console.error("Error initializing dock component:", error);
-      logMessage(`Error initializing dock component: ${error instanceof Error ? error.message : error}`);
-    }
+    await registerDock(platformSettings, customSettings?.apps);
+    await Dock.show();
   }
 
   if (bootstrap?.notifications) {
-    try {
-      // Register with notifications
-      logMessage("Initializing the workspace components: notifications");
-      await registerNotifications(platformSettings);
-    } catch (error) {
-      console.error("Error initializing notifications component:", error);
-      logMessage(`Error initializing notifications component: ${error instanceof Error ? error.message : error}`);
-    }
-  }
-
-  // Create the main application window as a workspace browser window (supports theming)
-  try {
-    logMessage("Creating main application window...");
-    const platform = fin.Platform.getCurrentSync();
-
-    // First create the window
-    await platform.createWindow({
-      name: 'stern-main-window',
-      defaultLeft: 100,
-      defaultTop: 100,
-      defaultWidth: 1200,
-      defaultHeight: 800,
-      minWidth: 800,
-      minHeight: 600,
-      defaultCentered: true,
-      saveWindowState: true,
-      icon: platformSettings.icon
-    } as unknown as Parameters<typeof platform.createWindow>[0]);
-
-    // Then create the view in that window
-    await platform.createView({
-      url: 'http://localhost:5173/',
-      name: 'stern-main-view',
-      target: { uuid: platformSettings.id, name: 'stern-main-window' }
-    });
-
-    logMessage("Main workspace window created successfully");
-  } catch (error) {
-    console.error("Error creating main window:", error);
-    logMessage(`Error creating main window: ${error instanceof Error ? error.message : error}`);
-  }
-
-  // Initialize theme service after all components are ready
-  try {
-    logMessage("Initializing theme service...");
-    await themeService.initialize();
-    logMessage("Theme service initialized successfully");
-  } catch (error) {
-    console.error("Error initializing theme service:", error);
-    logMessage(`Error initializing theme service: ${error instanceof Error ? error.message : error}`);
+    await registerNotifications(platformSettings);
   }
 
   // When the platform requests to be close we deregister from workspace components and quit
@@ -227,7 +135,6 @@ async function getManifestCustomSettings(): Promise<{
   platformSettings: PlatformSettings;
   customSettings?: CustomSettings;
 }> {
-  // Get the manifest for the current application
   const app = await fin.Application.getCurrent();
   const manifest = await app.getManifest() as {
     platform?: { uuid?: string; icon?: string };
