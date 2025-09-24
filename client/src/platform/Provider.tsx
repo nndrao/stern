@@ -1,248 +1,321 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { init } from '@openfin/workspace-platform';
-import { Dock, Home, Storefront } from '@openfin/workspace';
+import { Dock, Home, Storefront, CLITemplate } from '@openfin/workspace';
 import * as Notifications from '@openfin/workspace/notifications';
-import { register as registerDock, dockGetCustomActions } from './dock';
-import { register as registerHome } from './home';
-import { register as registerStore } from './store';
-import { register as registerNotifications } from './notifications';
-import { THEME_PALETTES } from './theme-palettes';
-import themeService from './theme-service';
-import type { CustomSettings, PlatformSettings } from './shapes';
+import { dockGetCustomActions } from './dock';
 
-let isInitialized = false;
-let logMessage: React.Dispatch<React.SetStateAction<string>>;
-
-function Provider() {
-  const [message, setMessage] = useState("");
-
-  logMessage = setMessage;
+export default function Provider() {
+  const isInitialized = useRef(false);
 
   useEffect(() => {
-    (async function () {
-      if (!isInitialized) {
-        isInitialized = true;
-        try {
-          setMessage("Stern Trading Platform initializing...");
-
-          // Load the settings from the manifest
-          const settings = await getManifestCustomSettings();
-
-          // When the platform api is ready we bootstrap the workspace components
-          const platform = fin.Platform.getCurrentSync();
-          await platform.once("platform-api-ready", async () => {
-            await initializeWorkspaceComponents(settings.platformSettings, settings.customSettings);
-            setMessage("Workspace platform initialized successfully");
-          });
-
-          // CRITICAL: Initialize the workspace platform FIRST
-          // This will trigger the platform-api-ready event
-          await initializeWorkspacePlatform(settings.platformSettings);
-        } catch (err) {
-          const errorMessage = `Error Initializing Platform: ${err instanceof Error ? err.message : err}`;
-          setMessage(errorMessage);
-          console.error(errorMessage, err);
-        }
-      }
-    })();
+    // Check if we're in OpenFin environment and prevent double initialization
+    if (typeof window !== 'undefined' && window.fin && !isInitialized.current) {
+      isInitialized.current = true;
+      initializePlatform();
+    } else if (!window.fin) {
+      console.log('Not in OpenFin environment - Provider will not initialize');
+    }
   }, []);
 
+  async function getManifestCustomSettings() {
+    try {
+      // Get the current OpenFin application
+      const app = await fin.Application.getCurrent();
+
+      // Get the manifest - using the correct API
+      const manifest = await app.getManifest() as any;
+
+      return {
+        platformSettings: {
+          id: manifest.platform?.uuid || "stern-platform",
+          title: manifest.shortcut?.name || "Stern Trading Platform",
+          icon: manifest.platform?.icon || "http://localhost:5173/stern.svg"
+        },
+        customSettings: manifest.customSettings || { apps: [] }
+      };
+    } catch (error) {
+      console.error('Failed to get manifest settings:', error);
+      // Return defaults if manifest loading fails
+      return {
+        platformSettings: {
+          id: "stern-platform",
+          title: "Stern Trading Platform",
+          icon: "http://localhost:5173/stern.svg"
+        },
+        customSettings: { apps: [] }
+      };
+    }
+  }
+
+  async function launchApp(app: any) {
+    console.log('Launching app:', app);
+    if (app.manifestType === "view" || app.url) {
+      // Launch as a view in the current platform
+      const platform = fin.Platform.getCurrentSync();
+      const view = await platform.createView({
+        name: app.appId,
+        url: app.url || app.manifest,
+        target: { name: app.appId, uuid: fin.me.uuid }
+      });
+
+      // Create a window to host the view
+      const window = await platform.createWindow({
+        name: `${app.appId}-window`,
+        defaultWidth: 1200,
+        defaultHeight: 800,
+        layout: {
+          content: [
+            {
+              type: "component",
+              componentName: "view",
+              componentState: {
+                name: app.appId,
+                url: app.url || app.manifest
+              }
+            }
+          ]
+        }
+      });
+    } else if (app.manifest) {
+      // Launch as a separate application from manifest
+      await fin.Application.startFromManifest(app.manifest);
+    } else {
+      console.error('App configuration missing url or manifest:', app);
+    }
+  }
+
+  function appToSearchEntry(app: any) {
+    return {
+      key: app.appId,
+      title: app.title,
+      description: app.description || '',
+      data: app,
+      label: 'App',
+      template: CLITemplate.SimpleText,
+      actions: [
+        {
+          name: "Launch",
+          hotkey: "Enter"
+        }
+      ],
+      icon: app.icons?.[0]?.src
+    };
+  }
+
+  async function initializePlatform() {
+    try {
+      console.log('Starting OpenFin platform initialization...');
+
+      // Get settings from manifest
+      const settings = await getManifestCustomSettings();
+      const apps = settings.customSettings.apps || [];
+
+      console.log('Platform settings:', settings.platformSettings);
+      console.log('Apps to register:', apps);
+
+      // FIRST: Initialize the workspace platform
+      console.log('Initializing workspace platform...');
+      await init({
+        browser: {
+          defaultWindowOptions: {
+            icon: settings.platformSettings.icon,
+            workspacePlatform: {
+              pages: [],
+              favicon: settings.platformSettings.icon
+            }
+          }
+        },
+        theme: [{
+          label: "Default",
+          default: "light",
+          palettes: {
+            light: {
+              brandPrimary: "#0A76D3",
+              brandSecondary: "#1E1F23",
+              backgroundPrimary: "#FAFBFE",
+              background1: "#FFFFFF",
+              background2: "#FAFBFE",
+              background3: "#F3F5F8",
+              background4: "#ECEEF1",
+              background5: "#DDDFE4",
+              background6: "#C9CBD2",
+              statusSuccess: "#35C759",
+              statusWarning: "#F48F00",
+              statusCritical: "#BE1700",
+              statusActive: "#0498FB",
+              inputBackground: "#ECEEF1",
+              inputColor: "#1E1F23",
+              inputPlaceholder: "#6D7178",
+              inputDisabled: "#7D808A",
+              inputFocused: "#C9CBD2",
+              textDefault: "#1E1F23",
+              textHelp: "#2F3136",
+              textInactive: "#7D808A"
+            },
+            dark: {
+              brandPrimary: "#0A76D3",
+              brandSecondary: "#383A47",
+              backgroundPrimary: "#1E1F23",
+              background1: "#111214",
+              background2: "#2F3136",
+              background3: "#383A47",
+              background4: "#4B4C58",
+              background5: "#5E606A",
+              background6: "#71747C",
+              statusSuccess: "#35C759",
+              statusWarning: "#F48F00",
+              statusCritical: "#BE1700",
+              statusActive: "#0498FB",
+              inputBackground: "#53555F",
+              inputColor: "#FFFFFF",
+              inputPlaceholder: "#C9CBD2",
+              inputDisabled: "#7D808A",
+              inputFocused: "#71747C",
+              textDefault: "#FFFFFF",
+              textHelp: "#C9CBD2",
+              textInactive: "#7D808A"
+            }
+          }
+        }],
+        customActions: dockGetCustomActions()
+      });
+
+      console.log('Platform initialized, waiting for platform-api-ready...');
+
+      // Get the current platform
+      const platform = fin.Platform.getCurrentSync();
+
+      // THEN: Register components when platform API is ready
+      await platform.once("platform-api-ready", async () => {
+        console.log('Platform API ready - registering workspace components');
+
+        try {
+          // Register all workspace components
+          await Promise.all([
+            // Register Dock
+            Dock.register({
+              id: settings.platformSettings.id + "-dock",
+              title: settings.platformSettings.title,
+              icon: settings.platformSettings.icon,
+              buttons: [
+                {
+                  type: "DropdownButton" as any,
+                  id: "apps-dropdown",
+                  tooltip: "Applications",
+                  iconUrl: settings.platformSettings.icon,
+                  options: apps.map((app: any) => ({
+                    tooltip: app.title,
+                    iconUrl: app.icons?.[0]?.src || settings.platformSettings.icon,
+                    action: { id: "launch-app", customData: app }
+                  }))
+                },
+                {
+                  type: "DropdownButton" as any,
+                  id: "theme-dropdown",
+                  tooltip: "Theme",
+                  iconUrl: settings.platformSettings.icon,
+                  options: [
+                    {
+                      tooltip: "Light Theme",
+                      iconUrl: settings.platformSettings.icon,
+                      action: { id: "set-theme", customData: "light" }
+                    },
+                    {
+                      tooltip: "Dark Theme",
+                      iconUrl: settings.platformSettings.icon,
+                      action: { id: "set-theme", customData: "dark" }
+                    }
+                  ]
+                }
+              ]
+            }),
+
+            // Register Home with proper search implementation
+            Home.register({
+              title: settings.platformSettings.title,
+              id: settings.platformSettings.id + "-home",
+              icon: settings.platformSettings.icon,
+              onUserInput: async (request: any, response: any) => {
+                // Don't search for commands
+                if (request.query && request.query.startsWith("/")) {
+                  return [];
+                }
+
+                // Filter apps based on search query
+                const query = request.query?.toLowerCase() || "";
+                const filteredApps = apps.filter((app: any) => {
+                  const title = app.title?.toLowerCase() || "";
+                  const description = app.description?.toLowerCase() || "";
+                  return title.includes(query) || description.includes(query);
+                });
+
+                // Return search results
+                return {
+                  results: filteredApps.map(appToSearchEntry)
+                };
+              },
+              onResultDispatch: async (result: any) => {
+                // Launch the selected app
+                if (result.data) {
+                  await launchApp(result.data);
+                }
+              }
+            }),
+
+            // Register Store
+            Storefront.register({
+              id: settings.platformSettings.id + "-store",
+              title: "App Store",
+              icon: settings.platformSettings.icon,
+              landingPage: {
+                hero: {
+                  title: settings.platformSettings.title,
+                  description: "Unified configurable trading platform",
+                  cta: { title: "Learn More", id: "learn-more" }
+                }
+              },
+              getApps: async () => apps,
+              launchApp: async (app: any) => {
+                await launchApp(app);
+              }
+            }),
+
+            // Register Notifications
+            Notifications.register({
+              id: settings.platformSettings.id + "-notifications",
+              title: "Notifications",
+              icon: settings.platformSettings.icon
+            })
+          ]);
+
+          console.log('Workspace components registered successfully');
+
+          // Show dock and home after registration
+          await Dock.show();
+          await Home.show();
+
+          // Hide provider window after initialization
+          const providerWindow = fin.Window.getCurrentSync();
+          await providerWindow.hide();
+
+        } catch (error) {
+          console.error('Failed to register workspace components:', error);
+        }
+      });
+
+      console.log('Platform initialization complete');
+    } catch (error) {
+      console.error('Failed to initialize platform:', error);
+    }
+  }
+
   return (
-    <div className="flex flex-col h-screen bg-slate-900 text-white p-8">
-      <header className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-blue-400">Stern Trading Platform</h1>
-          <p className="text-slate-400 mt-2">OpenFin Workspace Platform Provider</p>
-        </div>
-        <div className="text-right">
-          <div className="text-sm text-slate-500">Provider Window</div>
-        </div>
-      </header>
-      <main className="flex-1 flex flex-col justify-center items-center">
-        <div className="text-center max-w-lg">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent mb-4"></div>
-          <p className="text-lg mb-4">{message}</p>
-          <div className="text-sm text-slate-400 space-y-2">
-            <p>This window initializes the OpenFin workspace platform.</p>
-            <p>It will remain hidden during normal operation.</p>
-          </div>
-        </div>
-      </main>
+    <div className="flex h-screen items-center justify-center bg-slate-900 text-white">
+      <div className="text-center">
+        <h1 className="text-2xl font-bold mb-4">Stern Trading Platform</h1>
+        <p>Provider Window - Initializing workspace...</p>
+        <p className="text-sm mt-4 text-slate-400">This window will be hidden once initialized</p>
+      </div>
     </div>
   );
 }
-
-/**
- * Initialize the workspace platform.
- */
-async function initializeWorkspacePlatform(platformSettings: PlatformSettings): Promise<void> {
-  logMessage("Initializing workspace platform...");
-
-  await init({
-    browser: {
-      defaultWindowOptions: {
-        icon: platformSettings.icon,
-        workspacePlatform: {
-          pages: [],
-          favicon: platformSettings.icon
-        }
-      }
-    },
-    theme: [
-      {
-        label: "Default",
-        default: "light",
-        palettes: {
-          light: THEME_PALETTES.light,
-          dark: THEME_PALETTES.dark
-        }
-      }
-    ],
-    customActions: {
-      ...dockGetCustomActions()
-    }
-  });
-
-  logMessage("Workspace platform initialized");
-}
-
-/**
- * Initialize workspace components (Home, Dock, Store, Notifications).
- */
-async function initializeWorkspaceComponents(
-  platformSettings: PlatformSettings,
-  customSettings?: CustomSettings
-): Promise<void> {
-  logMessage("Initializing the workspace components");
-
-  const bootstrap = customSettings?.bootstrap;
-
-  if (bootstrap?.home) {
-    try {
-      // Register with home and show it
-      logMessage("Initializing the workspace components: home");
-      await registerHome(platformSettings, customSettings?.apps);
-      await Home.show();
-    } catch (error) {
-      console.error("Error initializing home component:", error);
-      logMessage(`Error initializing home component: ${error instanceof Error ? error.message : error}`);
-    }
-  }
-
-  if (bootstrap?.store) {
-    try {
-      // Register with store
-      logMessage("Initializing the workspace components: store");
-      await registerStore(platformSettings, customSettings?.apps);
-    } catch (error) {
-      console.error("Error initializing store component:", error);
-      logMessage(`Error initializing store component: ${error instanceof Error ? error.message : error}`);
-    }
-  }
-
-  if (bootstrap?.dock) {
-    try {
-      // Register with dock
-      logMessage("Initializing the workspace components: dock");
-      await registerDock(platformSettings, customSettings?.apps);
-      await Dock.show();
-    } catch (error) {
-      console.error("Error initializing dock component:", error);
-      logMessage(`Error initializing dock component: ${error instanceof Error ? error.message : error}`);
-    }
-  }
-
-  if (bootstrap?.notifications) {
-    try {
-      // Register with notifications
-      logMessage("Initializing the workspace components: notifications");
-      await registerNotifications(platformSettings);
-    } catch (error) {
-      console.error("Error initializing notifications component:", error);
-      logMessage(`Error initializing notifications component: ${error instanceof Error ? error.message : error}`);
-    }
-  }
-
-  // Create the main application window as a workspace browser window (supports theming)
-  try {
-    logMessage("Creating main application window...");
-    const platform = fin.Platform.getCurrentSync();
-
-    // First create the window
-    await platform.createWindow({
-      name: 'stern-main-window',
-      defaultLeft: 100,
-      defaultTop: 100,
-      defaultWidth: 1200,
-      defaultHeight: 800,
-      minWidth: 800,
-      minHeight: 600,
-      defaultCentered: true,
-      saveWindowState: true,
-      icon: platformSettings.icon
-    } as unknown as Parameters<typeof platform.createWindow>[0]);
-
-    // Then create the view in that window
-    await platform.createView({
-      url: 'http://localhost:5173/',
-      name: 'stern-main-view',
-      target: { uuid: platformSettings.id, name: 'stern-main-window' }
-    });
-
-    logMessage("Main workspace window created successfully");
-  } catch (error) {
-    console.error("Error creating main window:", error);
-    logMessage(`Error creating main window: ${error instanceof Error ? error.message : error}`);
-  }
-
-  // Initialize theme service after all components are ready
-  try {
-    logMessage("Initializing theme service...");
-    await themeService.initialize();
-    logMessage("Theme service initialized successfully");
-  } catch (error) {
-    console.error("Error initializing theme service:", error);
-    logMessage(`Error initializing theme service: ${error instanceof Error ? error.message : error}`);
-  }
-
-  // When the platform requests to be close we deregister from workspace components and quit
-  const providerWindow = fin.Window.getCurrentSync();
-  await providerWindow.once("close-requested", async () => {
-    try {
-      await Home.deregister(platformSettings.id);
-      await Storefront.deregister(platformSettings.id);
-      await Dock.deregister();
-      await Notifications.deregister(platformSettings.id);
-      await fin.Platform.getCurrentSync().quit();
-    } catch (error) {
-      console.error("Error during cleanup:", error);
-    }
-  });
-}
-
-/**
- * Read the custom settings from the manifest.
- */
-async function getManifestCustomSettings(): Promise<{
-  platformSettings: PlatformSettings;
-  customSettings?: CustomSettings;
-}> {
-  // Get the manifest for the current application
-  const app = await fin.Application.getCurrent();
-  const manifest = await app.getManifest() as {
-    platform?: { uuid?: string; icon?: string };
-    shortcut?: { name?: string };
-    customSettings?: CustomSettings;
-  };
-
-  return {
-    platformSettings: {
-      id: manifest.platform?.uuid ?? "stern-trading-platform",
-      title: manifest.shortcut?.name ?? "Stern Trading Platform",
-      icon: manifest.platform?.icon ?? "http://localhost:5173/stern.png"
-    },
-    customSettings: manifest.customSettings
-  };
-}
-
-export default Provider;

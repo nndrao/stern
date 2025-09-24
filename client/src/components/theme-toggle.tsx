@@ -1,6 +1,6 @@
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
-import { useOpenFinTheme } from "@/hooks/useOpenFinTheme"
+import { isOpenFin, setTheme as setOpenFinTheme } from "@/utils/openfin"
 
 import { Toggle } from "@/components/ui/toggle"
 import {
@@ -12,7 +12,14 @@ import {
 
 export function ThemeToggle() {
   const { setTheme } = useTheme()
-  const { setTheme: setWorkspaceTheme, isOpenFin } = useOpenFinTheme()
+  const isInOpenFin = isOpenFin()
+
+  const handleThemeChange = async (theme: 'light' | 'dark' | 'system') => {
+    if (isInOpenFin && theme !== 'system') {
+      await setOpenFinTheme(theme)
+    }
+    setTheme(theme)
+  }
 
   return (
     <DropdownMenu>
@@ -23,14 +30,14 @@ export function ThemeToggle() {
         </Toggle>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => isOpenFin ? setWorkspaceTheme("light") : setTheme("light")}>
+        <DropdownMenuItem onClick={() => handleThemeChange("light")}>
           Light
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => isOpenFin ? setWorkspaceTheme("dark") : setTheme("dark")}>
+        <DropdownMenuItem onClick={() => handleThemeChange("dark")}>
           Dark
         </DropdownMenuItem>
-        {!isOpenFin && (
-          <DropdownMenuItem onClick={() => setTheme("system")}>
+        {!isInOpenFin && (
+          <DropdownMenuItem onClick={() => handleThemeChange("system")}>
             System
           </DropdownMenuItem>
         )}
