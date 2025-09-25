@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { init } from '@openfin/workspace-platform';
-import { Dock, Home, Storefront, CLITemplate } from '@openfin/workspace';
-import * as Notifications from '@openfin/workspace/notifications';
-import { dockGetCustomActions } from './dock';
+import { dockGetCustomActions, registerDock, showDock } from './dock';
+import { initializeBaseUrlFromManifest, buildUrl } from '../openfin-utils';
 
 export default function Provider() {
   const isInitialized = useRef(false);
@@ -25,11 +24,14 @@ export default function Provider() {
       // Get the manifest - using the correct API
       const manifest = await app.getManifest() as any;
 
+      // Initialize base URL from manifest if available
+      await initializeBaseUrlFromManifest();
+
       return {
         platformSettings: {
           id: manifest.platform?.uuid || "stern-platform",
           title: manifest.shortcut?.name || "Stern Trading Platform",
-          icon: manifest.platform?.icon || "http://localhost:5173/stern.svg"
+          icon: manifest.platform?.icon || buildUrl("/stern.svg")
         },
         customSettings: manifest.customSettings || { apps: [] }
       };
@@ -40,67 +42,13 @@ export default function Provider() {
         platformSettings: {
           id: "stern-platform",
           title: "Stern Trading Platform",
-          icon: "http://localhost:5173/stern.svg"
+          icon: buildUrl("/stern.svg")
         },
         customSettings: { apps: [] }
       };
     }
   }
 
-  async function launchApp(app: any) {
-    console.log('Launching app:', app);
-    if (app.manifestType === "view" || app.url) {
-      // Launch as a view in the current platform
-      const platform = fin.Platform.getCurrentSync();
-      const view = await platform.createView({
-        name: app.appId,
-        url: app.url || app.manifest,
-        target: { name: app.appId, uuid: fin.me.uuid }
-      });
-
-      // Create a window to host the view
-      const window = await platform.createWindow({
-        name: `${app.appId}-window`,
-        defaultWidth: 1200,
-        defaultHeight: 800,
-        layout: {
-          content: [
-            {
-              type: "component",
-              componentName: "view",
-              componentState: {
-                name: app.appId,
-                url: app.url || app.manifest
-              }
-            }
-          ]
-        }
-      });
-    } else if (app.manifest) {
-      // Launch as a separate application from manifest
-      await fin.Application.startFromManifest(app.manifest);
-    } else {
-      console.error('App configuration missing url or manifest:', app);
-    }
-  }
-
-  function appToSearchEntry(app: any) {
-    return {
-      key: app.appId,
-      title: app.title,
-      description: app.description || '',
-      data: app,
-      label: 'App',
-      template: CLITemplate.SimpleText,
-      actions: [
-        {
-          name: "Launch",
-          hotkey: "Enter"
-        }
-      ],
-      icon: app.icons?.[0]?.src
-    };
-  }
 
   async function initializePlatform() {
     try {
@@ -190,109 +138,18 @@ export default function Provider() {
         console.log('Platform API ready - registering workspace components');
 
         try {
-          // Register all workspace components
-          await Promise.all([
-            // Register Dock
-            Dock.register({
-              id: settings.platformSettings.id + "-dock",
-              title: settings.platformSettings.title,
-              icon: settings.platformSettings.icon,
-              buttons: [
-                {
-                  type: "DropdownButton" as any,
-                  id: "apps-dropdown",
-                  tooltip: "Applications",
-                  iconUrl: settings.platformSettings.icon,
-                  options: apps.map((app: any) => ({
-                    tooltip: app.title,
-                    iconUrl: app.icons?.[0]?.src || settings.platformSettings.icon,
-                    action: { id: "launch-app", customData: app }
-                  }))
-                },
-                {
-                  type: "DropdownButton" as any,
-                  id: "theme-dropdown",
-                  tooltip: "Theme",
-                  iconUrl: settings.platformSettings.icon,
-                  options: [
-                    {
-                      tooltip: "Light Theme",
-                      iconUrl: settings.platformSettings.icon,
-                      action: { id: "set-theme", customData: "light" }
-                    },
-                    {
-                      tooltip: "Dark Theme",
-                      iconUrl: settings.platformSettings.icon,
-                      action: { id: "set-theme", customData: "dark" }
-                    }
-                  ]
-                }
-              ]
-            }),
+          // Register Dock only
+          await registerDock({
+            id: settings.platformSettings.id,
+            title: settings.platformSettings.title,
+            icon: settings.platformSettings.icon,
+            apps: apps
+          });
 
-            // Register Home with proper search implementation
-            Home.register({
-              title: settings.platformSettings.title,
-              id: settings.platformSettings.id + "-home",
-              icon: settings.platformSettings.icon,
-              onUserInput: async (request: any, response: any) => {
-                // Don't search for commands
-                if (request.query && request.query.startsWith("/")) {
-                  return [];
-                }
+          console.log('Dock registered successfully');
 
-                // Filter apps based on search query
-                const query = request.query?.toLowerCase() || "";
-                const filteredApps = apps.filter((app: any) => {
-                  const title = app.title?.toLowerCase() || "";
-                  const description = app.description?.toLowerCase() || "";
-                  return title.includes(query) || description.includes(query);
-                });
-
-                // Return search results
-                return {
-                  results: filteredApps.map(appToSearchEntry)
-                };
-              },
-              onResultDispatch: async (result: any) => {
-                // Launch the selected app
-                if (result.data) {
-                  await launchApp(result.data);
-                }
-              }
-            }),
-
-            // Register Store
-            Storefront.register({
-              id: settings.platformSettings.id + "-store",
-              title: "App Store",
-              icon: settings.platformSettings.icon,
-              landingPage: {
-                hero: {
-                  title: settings.platformSettings.title,
-                  description: "Unified configurable trading platform",
-                  cta: { title: "Learn More", id: "learn-more" }
-                }
-              },
-              getApps: async () => apps,
-              launchApp: async (app: any) => {
-                await launchApp(app);
-              }
-            }),
-
-            // Register Notifications
-            Notifications.register({
-              id: settings.platformSettings.id + "-notifications",
-              title: "Notifications",
-              icon: settings.platformSettings.icon
-            })
-          ]);
-
-          console.log('Workspace components registered successfully');
-
-          // Show dock and home after registration
-          await Dock.show();
-          await Home.show();
+          // Show dock after registration
+          await showDock();
 
           // Hide provider window after initialization
           const providerWindow = fin.Window.getCurrentSync();
