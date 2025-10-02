@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
-import createApp from './app';
+import { createApp } from './app';
 import logger from './utils/logger';
 
 // Load environment variables

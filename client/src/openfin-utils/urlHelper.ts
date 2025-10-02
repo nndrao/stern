@@ -3,6 +3,8 @@
  * Provides environment-agnostic URL management with base URL support
  */
 
+import { logger } from '@/utils/logger';
+
 // Store the explicitly set base URL
 let explicitBaseUrl: string | null = null;
 
@@ -12,7 +14,7 @@ let explicitBaseUrl: string | null = null;
 export const setBaseUrl = (url: string): void => {
   // Remove trailing slash for consistency
   explicitBaseUrl = url.endsWith('/') ? url.slice(0, -1) : url;
-  console.log(`Base URL explicitly set to: ${explicitBaseUrl}`);
+  logger.info(`Base URL explicitly set to: ${explicitBaseUrl}`, undefined, 'urlHelper');
 };
 
 /**
@@ -20,7 +22,7 @@ export const setBaseUrl = (url: string): void => {
  */
 export const clearBaseUrl = (): void => {
   explicitBaseUrl = null;
-  console.log('Base URL cleared, using auto-detection');
+  logger.info('Base URL cleared, using auto-detection', undefined, 'urlHelper');
 };
 
 /**
@@ -123,7 +125,7 @@ export const migrateToNewBaseUrl = (newBaseUrl: string, oldBaseUrl?: string) => 
     }
   });
 
-  console.log(`Migrated from ${oldBase} to ${newBaseUrl}`);
+  logger.info(`Migrated from ${oldBase} to ${newBaseUrl}`, undefined, 'urlHelper');
 };
 
 /**
@@ -138,10 +140,10 @@ export const initializeBaseUrlFromManifest = async (): Promise<void> => {
       // Check if manifest has a custom baseUrl setting
       if (manifest.customSettings?.baseUrl) {
         setBaseUrl(manifest.customSettings.baseUrl);
-        console.log('Base URL initialized from manifest:', manifest.customSettings.baseUrl);
+        logger.info('Base URL initialized from manifest', { baseUrl: manifest.customSettings.baseUrl }, 'urlHelper');
       }
     } catch (error) {
-      console.warn('Could not initialize base URL from manifest:', error);
+      logger.warn('Could not initialize base URL from manifest', error, 'urlHelper');
     }
   }
 };

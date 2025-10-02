@@ -8,6 +8,7 @@ import {
   migrateToNewBaseUrl,
   initializeBaseUrlFromManifest
 } from './urlHelper';
+import { logger } from '@/utils/logger';
 
 describe('URL Helper Utilities', () => {
   beforeEach(() => {
@@ -34,17 +35,17 @@ describe('URL Helper Utilities', () => {
     });
 
     it('should log when setting base URL', () => {
-      const consoleSpy = vi.spyOn(console, 'log');
+      const loggerSpy = vi.spyOn(logger, 'info');
       setBaseUrl('https://test.com');
-      expect(consoleSpy).toHaveBeenCalledWith('Base URL explicitly set to: https://test.com');
-      consoleSpy.mockRestore();
+      expect(loggerSpy).toHaveBeenCalledWith('Base URL explicitly set to: https://test.com', undefined, 'urlHelper');
+      loggerSpy.mockRestore();
     });
 
     it('should log when clearing base URL', () => {
-      const consoleSpy = vi.spyOn(console, 'log');
+      const loggerSpy = vi.spyOn(logger, 'info');
       clearBaseUrl();
-      expect(consoleSpy).toHaveBeenCalledWith('Base URL cleared, using auto-detection');
-      consoleSpy.mockRestore();
+      expect(loggerSpy).toHaveBeenCalledWith('Base URL cleared, using auto-detection', undefined, 'urlHelper');
+      loggerSpy.mockRestore();
     });
   });
 
@@ -169,10 +170,10 @@ describe('URL Helper Utilities', () => {
     });
 
     it('should log migration message', () => {
-      const consoleSpy = vi.spyOn(console, 'log');
+      const loggerSpy = vi.spyOn(logger, 'info');
       migrateToNewBaseUrl('http://new.com', 'http://old.com');
-      expect(consoleSpy).toHaveBeenCalledWith('Migrated from http://old.com to http://new.com');
-      consoleSpy.mockRestore();
+      expect(loggerSpy).toHaveBeenCalledWith('Migrated from http://old.com to http://new.com', undefined, 'urlHelper');
+      loggerSpy.mockRestore();
     });
   });
 
@@ -244,15 +245,16 @@ describe('URL Helper Utilities', () => {
         }
       } as any;
 
-      const consoleSpy = vi.spyOn(console, 'warn');
+      const loggerSpy = vi.spyOn(logger, 'warn');
       await initializeBaseUrlFromManifest();
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Could not initialize base URL from manifest:',
-        expect.any(Error)
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Could not initialize base URL from manifest',
+        expect.any(Error),
+        'urlHelper'
       );
       expect(getCurrentBaseUrl()).toBe('http://localhost:5173');
-      consoleSpy.mockRestore();
+      loggerSpy.mockRestore();
     });
 
     it('should log when base URL is initialized from manifest', async () => {
@@ -268,14 +270,16 @@ describe('URL Helper Utilities', () => {
         }
       } as any;
 
-      const consoleSpy = vi.spyOn(console, 'log');
+      const loggerSpy = vi.spyOn(logger, 'info');
       await initializeBaseUrlFromManifest();
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Base URL initialized from manifest:',
-        'https://from-manifest.com'
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Base URL initialized from manifest',
+        { baseUrl: 'https://from-manifest.com' },
+        'urlHelper'
       );
-      consoleSpy.mockRestore();
+      expect(getCurrentBaseUrl()).toBe('https://from-manifest.com');
+      loggerSpy.mockRestore();
     });
   });
 });

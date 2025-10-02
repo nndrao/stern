@@ -11,6 +11,7 @@ export default defineConfig({
   },
   optimizeDeps: {
     exclude: ['lucide-react'],
+    include: ['immer', 'zustand', 'zustand/middleware/immer'],
   },
   server: {
     port: 5173,

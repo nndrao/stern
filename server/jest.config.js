@@ -17,13 +17,19 @@ module.exports = {
 
   // Transform configuration
   transform: {
-    '^.+\\.(ts|tsx)$': 'ts-jest'
+    '^.+\\.(ts|tsx)$': ['ts-jest', {
+      tsconfig: 'tsconfig.json',
+      diagnostics: {
+        ignoreCodes: ['TS151001']
+      }
+    }]
   },
 
   // Module name mapping
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
-    '^@test/(.*)$': '<rootDir>/src/test/$1'
+    '^@test/(.*)$': '<rootDir>/src/test/$1',
+    '^@stern/shared-types$': '<rootDir>/../shared/src/index.ts'
   },
 
   // Setup files
@@ -58,16 +64,6 @@ module.exports = {
 
   // Preset for TypeScript support
   preset: 'ts-jest',
-
-  // TypeScript configuration
-  globals: {
-    'ts-jest': {
-      tsconfig: 'tsconfig.json',
-      diagnostics: {
-        ignoreCodes: ['TS151001']
-      }
-    }
-  },
 
   // Test patterns to ignore
   testPathIgnorePatterns: [

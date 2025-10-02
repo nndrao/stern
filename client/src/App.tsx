@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { isOpenFin, createWindow } from "@/utils/openfin";
+import { logger } from "@/utils/logger";
 
 function App() {
   const isInOpenFin = isOpenFin();
@@ -13,9 +14,9 @@ function App() {
           name: 'test-blotter',
           bounds: { x: 200, y: 200, width: 1000, height: 600 }
         });
-        console.log('Blotter window created:', window);
+        logger.info('Blotter window created', window, 'App');
       } catch (error) {
-        console.error('Failed to create blotter window:', error);
+        logger.error('Failed to create blotter window', error, 'App');
       }
     }
   };

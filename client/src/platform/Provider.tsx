@@ -1,10 +1,39 @@
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { init } from '@openfin/workspace-platform';
-import { dockGetCustomActions, registerDock, showDock } from './dock';
+import { ThemeProvider } from '@/components/theme-provider';
+import { OpenFinWorkspaceProvider } from '@/services/openfin/OpenFinWorkspaceProvider';
+import { Sidebar } from '@/components/provider/Sidebar';
+import { DockConfigEditor } from '@/components/provider/DockConfigEditor';
+import { Toaster } from '@/components/ui/toaster';
+import { dockGetCustomActions, registerDock, showDock, isDockAvailable, registerDockFromConfig } from './dock';
 import { initializeBaseUrlFromManifest, buildUrl } from '../openfin-utils';
+import { logger } from '@/utils/logger';
+import { dockConfigService } from '@/services/dockConfigService';
+
+// Placeholder components for future features
+const SettingsPanel = () => (
+  <div className="flex items-center justify-center h-full">
+    <div className="text-center">
+      <h2 className="text-2xl font-semibold mb-2">Settings</h2>
+      <p className="text-muted-foreground">Settings panel coming soon</p>
+    </div>
+  </div>
+);
+
+const HelpPanel = () => (
+  <div className="flex items-center justify-center h-full">
+    <div className="text-center">
+      <h2 className="text-2xl font-semibold mb-2">Help & Documentation</h2>
+      <p className="text-muted-foreground">Help documentation coming soon</p>
+    </div>
+  </div>
+);
 
 export default function Provider() {
   const isInitialized = useRef(false);
+  const [isPlatformReady, setIsPlatformReady] = useState(false);
+  const [activeTab, setActiveTab] = useState('dock');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     // Check if we're in OpenFin environment and prevent double initialization
@@ -12,7 +41,9 @@ export default function Provider() {
       isInitialized.current = true;
       initializePlatform();
     } else if (!window.fin) {
-      console.log('Not in OpenFin environment - Provider will not initialize');
+      logger.info('Not in OpenFin environment - Provider will not initialize', undefined, 'Provider');
+      // Still show the UI in non-OpenFin environment for development
+      setIsPlatformReady(true);
     }
   }, []);
 
@@ -36,7 +67,7 @@ export default function Provider() {
         customSettings: manifest.customSettings || { apps: [] }
       };
     } catch (error) {
-      console.error('Failed to get manifest settings:', error);
+      logger.error('Failed to get manifest settings', error, 'Provider');
       // Return defaults if manifest loading fails
       return {
         platformSettings: {
@@ -52,28 +83,24 @@ export default function Provider() {
 
   async function initializePlatform() {
     try {
-      console.log('Starting OpenFin platform initialization...');
+      logger.info('Starting OpenFin platform initialization...', undefined, 'Provider');
 
       // Get settings from manifest
       const settings = await getManifestCustomSettings();
       const apps = settings.customSettings.apps || [];
 
-      console.log('Platform settings:', settings.platformSettings);
-      console.log('Apps to register:', apps);
+      logger.info('Platform settings:', settings.platformSettings, 'Provider');
+      logger.debug('Apps to register:', apps, 'Provider');
 
       // FIRST: Initialize the workspace platform
-      console.log('Initializing workspace platform...');
-      await init({
-        browser: {
-          defaultWindowOptions: {
-            icon: settings.platformSettings.icon,
-            workspacePlatform: {
-              pages: [],
-              favicon: settings.platformSettings.icon
-            }
-          }
-        },
-        theme: [{
+      logger.info('Initializing workspace platform...', undefined, 'Provider');
+
+      // Wrap in try-catch to handle initialization errors
+      try {
+        // Minimal initialization to avoid registration errors
+        await init({
+          browser: {},
+          theme: [{
           label: "Default",
           default: "light",
           palettes: {
@@ -128,51 +155,138 @@ export default function Provider() {
         customActions: dockGetCustomActions()
       });
 
-      console.log('Platform initialized, waiting for platform-api-ready...');
+      logger.info('Platform initialized, waiting for platform-api-ready...', undefined, 'Provider');
+    } catch (initError: any) {
+      logger.error('Failed to initialize workspace platform', initError, 'Provider');
+      // Continue anyway - the UI should still work
+      if (initError?.message?.includes('system topic payload')) {
+        logger.info('Skipping workspace platform features due to initialization error', undefined, 'Provider');
+      }
+    }
 
       // Get the current platform
-      const platform = fin.Platform.getCurrentSync();
+      try {
+        const platform = fin.Platform.getCurrentSync();
 
-      // THEN: Register components when platform API is ready
-      await platform.once("platform-api-ready", async () => {
-        console.log('Platform API ready - registering workspace components');
+        // THEN: Register components when platform API is ready
+        platform.once("platform-api-ready", async () => {
+        logger.info('Platform API ready - registering workspace components', undefined, 'Provider');
 
         try {
-          // Register Dock only
-          await registerDock({
-            id: settings.platformSettings.id,
-            title: settings.platformSettings.title,
-            icon: settings.platformSettings.icon,
-            apps: apps
-          });
+          // Add a small delay to ensure workspace APIs are fully initialized
+          await new Promise(resolve => setTimeout(resolve, 500));
 
-          console.log('Dock registered successfully');
+          // Check if Dock is available
+          if (isDockAvailable()) {
+            // Try to load saved dock configuration from API
+            try {
+              logger.info('Loading saved dock configuration from API...', undefined, 'Provider');
+              const userId = 'default-user'; // TODO: Get from auth service
+              const configs = await dockConfigService.loadByUser(userId);
 
-          // Show dock after registration
-          await showDock();
+              if (configs && configs.length > 0) {
+                // Use the first configuration (or the default one)
+                const defaultConfig = configs.find(c => c.isDefault) || configs[0];
+                logger.info('Loaded dock config from API', {
+                  configId: defaultConfig.configId,
+                  name: defaultConfig.name,
+                  menuItemsCount: defaultConfig.config?.menuItems?.length
+                }, 'Provider');
+                logger.debug('Full config menuItems', defaultConfig.config?.menuItems, 'Provider');
+
+                // Register dock with saved configuration
+                await registerDockFromConfig(defaultConfig);
+                logger.info('Dock registered with saved configuration', undefined, 'Provider');
+              } else {
+                logger.info('No saved dock configuration found, using manifest apps', undefined, 'Provider');
+                // Fallback to manifest apps
+                await registerDock({
+                  id: settings.platformSettings.id,
+                  title: settings.platformSettings.title,
+                  icon: settings.platformSettings.icon,
+                  apps: apps
+                });
+                logger.info('Dock registered with manifest apps', undefined, 'Provider');
+              }
+            } catch (apiError) {
+              logger.warn('Failed to load dock config from API, falling back to manifest', apiError, 'Provider');
+              // Fallback to manifest apps
+              await registerDock({
+                id: settings.platformSettings.id,
+                title: settings.platformSettings.title,
+                icon: settings.platformSettings.icon,
+                apps: apps
+              });
+            }
+
+            // Show dock after registration
+            await showDock();
+          } else {
+            logger.warn('Dock API not available - skipping dock registration', undefined, 'Provider');
+            logger.info('Make sure @openfin/workspace package is properly installed', undefined, 'Provider');
+          }
 
           // Hide provider window after initialization
           const providerWindow = fin.Window.getCurrentSync();
           await providerWindow.hide();
 
-        } catch (error) {
-          console.error('Failed to register workspace components:', error);
+        } catch (error: any) {
+          logger.error('Failed to register workspace components', error, 'Provider');
+          // Continue execution even if dock registration fails
+          if (error?.message && !error.message.includes('system topic payload')) {
+           // Detailed error already logged above
+          }
         }
       });
+    } catch (platformError: any) {
+      logger.error('Failed to get platform or register listeners', platformError, 'Provider');
+    }
 
-      console.log('Platform initialization complete');
+      logger.info('Platform initialization complete', undefined, 'Provider');
+      setIsPlatformReady(true);
     } catch (error) {
-      console.error('Failed to initialize platform:', error);
+      logger.error('Failed to initialize platform', error, 'Provider');
+      // Still show UI on error
+      setIsPlatformReady(true);
     }
   }
 
-  return (
-    <div className="flex h-screen items-center justify-center bg-slate-900 text-white">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold mb-4">Stern Trading Platform</h1>
-        <p>Provider Window - Initializing workspace...</p>
-        <p className="text-sm mt-4 text-slate-400">This window will be hidden once initialized</p>
+  // Render the dashboard UI
+  if (!isPlatformReady) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <h1 className="text-2xl font-bold mb-4 mt-4">Stern Trading Platform</h1>
+          <p>Initializing workspace...</p>
+        </div>
       </div>
+    );
+  }
+
+  // Main dashboard layout
+  const DashboardContent = () => (
+    <div className="flex h-screen bg-background">
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        collapsed={sidebarCollapsed}
+        onCollapsedChange={setSidebarCollapsed}
+      />
+      <main className="flex-1 overflow-hidden">
+        {activeTab === 'dock' && <DockConfigEditor />}
+        {activeTab === 'settings' && <SettingsPanel />}
+        {activeTab === 'help' && <HelpPanel />}
+      </main>
     </div>
+  );
+
+  return (
+    <ThemeProvider defaultTheme="dark" storageKey="stern-theme">
+      <OpenFinWorkspaceProvider>
+        <DashboardContent />
+        <Toaster />
+      </OpenFinWorkspaceProvider>
+    </ThemeProvider>
   );
 }
