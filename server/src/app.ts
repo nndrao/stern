@@ -12,15 +12,25 @@ export async function createApp(): Promise<express.Application> {
   const app = express();
 
   // Security middleware
+  // Note: CSP is relaxed for development. In production, remove unsafe-inline and use nonces
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", ...(isDevelopment ? ["'unsafe-inline'"] : [])],
         scriptSrc: ["'self'"],
-        imgSrc: ["'self'", "data:", "https:"]
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["'none'"]
       }
-    }
+    },
+    crossOriginEmbedderPolicy: !isDevelopment,
+    crossOriginResourcePolicy: { policy: "cross-origin" }
   }));
 
   // CORS configuration
@@ -28,7 +38,7 @@ export async function createApp(): Promise<express.Application> {
     origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000', 'http://localhost:5173'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-app-id', 'x-user-id']
   }));
 
   // Rate limiting

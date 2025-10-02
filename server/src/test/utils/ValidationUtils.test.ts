@@ -129,29 +129,52 @@ describe('ValidationUtils', () => {
   describe('validateActiveSetting', () => {
     it('should validate config with correct active setting', () => {
       const config = createMockUnifiedConfig();
-      
+
       const error = ValidationUtils.validateActiveSetting(config);
-      
+
       expect(error).toBeNull();
     });
 
-    it('should reject config with missing active setting', () => {
+    it('should allow empty activeSetting when there are no versions', () => {
+      const config = createMockUnifiedConfig({
+        activeSetting: '',
+        settings: []
+      });
+
+      const error = ValidationUtils.validateActiveSetting(config);
+
+      expect(error).toBeNull();
+    });
+
+    it('should allow null activeSetting when there are no versions', () => {
+      const config = createMockUnifiedConfig({
+        activeSetting: null as any,
+        settings: []
+      });
+
+      const error = ValidationUtils.validateActiveSetting(config);
+
+      expect(error).toBeNull();
+    });
+
+    it('should reject config with missing active setting when settings exist', () => {
       const config = createMockUnifiedConfig({
         activeSetting: ''
       });
-      
+
       const error = ValidationUtils.validateActiveSetting(config);
-      
-      expect(error).toBe('activeSetting is required');
+
+      expect(error).toBe('activeSetting is required when settings array is not empty');
     });
 
-    it('should reject config with empty settings array', () => {
+    it('should reject config with empty settings array when activeSetting is specified', () => {
       const config = createMockUnifiedConfig({
-        settings: []
+        settings: [],
+        activeSetting: '12345678-1234-1234-1234-123456789012'
       });
-      
+
       const error = ValidationUtils.validateActiveSetting(config);
-      
+
       expect(error).toBe('settings array cannot be empty when activeSetting is specified');
     });
 
@@ -159,9 +182,9 @@ describe('ValidationUtils', () => {
       const config = createMockUnifiedConfig({
         activeSetting: 'non-existent-id'
       });
-      
+
       const error = ValidationUtils.validateActiveSetting(config);
-      
+
       expect(error).toBe('activeSetting must reference a valid version in the settings array');
     });
   });

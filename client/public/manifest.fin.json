@@ -1,20 +1,20 @@
 {
   "devtools_port": 9090,
-  "licenseKey": "openfin-demo-license-key",
+  "licenseKey": "stern-trading-demo",
   "runtime": {
     "arguments": "--v=1 --inspect",
     "version": "41.134.102.6"
   },
   "platform": {
-    "uuid": "stern-trading-platform",
+    "uuid": "stern-platform",
     "icon": "http://localhost:5173/stern.svg",
-    "autoShow": true,
+    "autoShow": false,
     "providerUrl": "http://localhost:5173/platform/provider",
     "preventQuitOnLastWindowClosed": true
   },
   "shortcut": {
     "company": "Stern Trading",
-    "description": "Stern Trading Platform - Unified Configurable Blotter",
+    "description": "Stern Trading Platform",
     "icon": "http://localhost:5173/stern.svg",
     "name": "Stern Trading Platform",
     "target": ["desktop", "start-menu"]
@@ -23,53 +23,19 @@
     "company": "Stern Trading",
     "product": "Stern Trading Platform",
     "email": "support@sterntrading.com",
-    "forwardErrorReports": true
+    "forwardErrorReports": false
   },
   "customSettings": {
-    "bootstrap": {
-      "home": true,
-      "store": true,
-      "dock": true,
-      "notifications": true
-    },
     "apps": [
       {
         "appId": "stern-blotter",
         "name": "stern-blotter",
         "title": "Stern Blotter",
-        "description": "Main trading blotter application",
-        "manifest": "http://localhost:5173/",
+        "description": "Main trading blotter",
+        "url": "http://localhost:5173/",
         "manifestType": "view",
-        "icons": [
-          {
-            "src": "http://localhost:5173/stern.svg"
-          }
-        ],
-        "contactEmail": "support@stern.com",
-        "supportEmail": "support@stern.com",
-        "publisher": "Stern Trading",
-        "intents": [],
-        "images": [],
-        "tags": ["trading", "blotter", "stern"]
-      },
-      {
-        "appId": "stern-analytics",
-        "name": "stern-analytics",
-        "title": "Trading Analytics",
-        "description": "Real-time trading analytics dashboard",
-        "manifest": "http://localhost:5173/",
-        "manifestType": "view",
-        "icons": [
-          {
-            "src": "http://localhost:5173/stern.svg"
-          }
-        ],
-        "contactEmail": "support@stern.com",
-        "supportEmail": "support@stern.com",
-        "publisher": "Stern Trading",
-        "intents": [],
-        "images": [],
-        "tags": ["analytics", "trading", "dashboard"]
+        "icons": [{ "src": "http://localhost:5173/stern.svg" }],
+        "tags": ["trading", "blotter"]
       }
     ]
   }

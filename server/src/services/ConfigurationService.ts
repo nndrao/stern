@@ -61,6 +61,12 @@ export class ConfigurationService {
       lastUpdated: new Date()
     };
 
+    // If activeSetting is empty, null, or undefined, set it to 'temp-uuid'
+    if (!config.activeSetting || config.activeSetting === '' || config.activeSetting === null) {
+      config.activeSetting = 'temp-uuid';
+      logger.debug('activeSetting was empty/null/undefined, set to temp-uuid', { configId: config.configId });
+    }
+
     // Validate configuration
     const validationError = ValidationUtils.validateCompleteConfig(config);
     if (validationError) {

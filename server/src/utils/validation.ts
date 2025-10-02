@@ -2,6 +2,7 @@ import Joi from 'joi';
 import { UnifiedConfig, ConfigurationFilter, COMPONENT_TYPES, COMPONENT_SUBTYPES } from '../types/configuration';
 
 // Validation schemas using Joi
+// Updated to allow empty activeSetting when no versions exist
 
 const configVersionSchema = Joi.object({
   versionId: Joi.string().uuid().required(),
@@ -25,7 +26,11 @@ export const unifiedConfigSchema = Joi.object({
   icon: Joi.string().max(200).optional(),
   config: Joi.any().required(),
   settings: Joi.array().items(configVersionSchema).required(),
-  activeSetting: Joi.string().uuid().required(),
+  activeSetting: Joi.alternatives().try(
+    Joi.string().uuid(),
+    Joi.string().valid('', 'temp-uuid'),
+    Joi.allow(null)
+  ).required(),
   tags: Joi.array().items(Joi.string().max(50)).max(20).optional(),
   category: Joi.string().max(100).optional(),
   isShared: Joi.boolean().optional(),
@@ -54,7 +59,11 @@ export const updateConfigSchema = Joi.object({
   icon: Joi.string().max(200).allow('').optional(),
   config: Joi.any().optional(),
   settings: Joi.array().items(configVersionSchema).optional(),
-  activeSetting: Joi.string().uuid().optional(),
+  activeSetting: Joi.alternatives().try(
+    Joi.string().uuid(),
+    Joi.string().valid('', 'temp-uuid'),
+    Joi.allow(null)
+  ).optional(),
   tags: Joi.array().items(Joi.string().max(50)).max(20).optional(),
   category: Joi.string().max(100).allow('').optional(),
   isShared: Joi.boolean().optional(),
@@ -168,19 +177,23 @@ export class ValidationUtils {
    * Validates that activeSetting exists in settings array
    */
   static validateActiveSetting(config: UnifiedConfig): string | null {
-    if (!config.activeSetting) {
-      return 'activeSetting is required';
+    // Allow empty string, null, or 'temp-uuid' when there are no versions
+    if (!config.activeSetting || config.activeSetting === '' || config.activeSetting === 'temp-uuid') {
+      if (config.settings && config.settings.length > 0) {
+        return 'activeSetting is required when settings array is not empty';
+      }
+      return null; // OK to have empty/temp-uuid activeSetting when no versions
     }
-    
+
     if (!config.settings || config.settings.length === 0) {
       return 'settings array cannot be empty when activeSetting is specified';
     }
-    
+
     const activeVersion = config.settings.find(v => v.versionId === config.activeSetting);
     if (!activeVersion) {
       return 'activeSetting must reference a valid version in the settings array';
     }
-    
+
     return null;
   }
 

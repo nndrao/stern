@@ -113,6 +113,14 @@ logs/
 ehthumbs.db
 Thumbs.db
 
+# Windows reserved device names (can't be tracked in Git on Windows)
+NUL
+CON
+PRN
+AUX
+COM[1-9]
+LPT[1-9]
+
 # Test files
 test-results/
 junit.xml
