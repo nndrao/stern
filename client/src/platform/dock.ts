@@ -27,7 +27,14 @@ interface DockConfig {
   id: string;
   title: string;
   icon: string;
-  apps: any[];
+  apps: Array<{
+    appId: string;
+    title: string;
+    manifestType?: string;
+    url?: string;
+    manifest?: string;
+    icons?: Array<{ src: string }>;
+  }>;
   menuItems?: DockMenuItem[]; // For dynamic configuration
 }
 
@@ -35,13 +42,21 @@ interface DockConfig {
 let currentDockConfig: DockConfig | null = null;
 
 /**
+ * Custom action event interface
+ */
+interface CustomActionEvent {
+  callerType: CustomActionCallerType;
+  customData?: DockMenuItem | string | { appId: string; title: string; manifestType?: string; url?: string; manifest?: string; icons?: Array<{ src: string }> };
+}
+
+/**
  * Dock custom actions for handling button clicks
  */
 export function dockGetCustomActions() {
   return {
-    "launch-app": async (e: any) => {
+    "launch-app": async (e: CustomActionEvent) => {
       if (e.callerType === CustomActionCallerType.CustomDropdownItem) {
-        const app = e.customData;
+        const app = e.customData as { appId: string; title: string; manifestType?: string; url?: string; manifest?: string };
         try {
           if (app.manifestType === "view" || app.url) {
             // Launch as a view in a new window
@@ -67,7 +82,7 @@ export function dockGetCustomActions() {
       }
     },
 
-    "launch-component": async (e: any) => {
+    "launch-component": async (e: CustomActionEvent) => {
       if (e.callerType === CustomActionCallerType.CustomDropdownItem ||
           e.callerType === CustomActionCallerType.CustomButton) {
         const menuItem = e.customData as DockMenuItem;
@@ -79,9 +94,9 @@ export function dockGetCustomActions() {
       }
     },
 
-    "set-theme": async (e: any) => {
+    "set-theme": async (e: CustomActionEvent) => {
       if (e.callerType === CustomActionCallerType.CustomDropdownItem) {
-        const theme = e.customData;
+        const theme = e.customData as string;
         try {
           const platform = getCurrentSync();
           await platform.Theme.setSelectedScheme(theme);
@@ -91,7 +106,7 @@ export function dockGetCustomActions() {
       }
     },
 
-    "reload-dock": async (e: any) => {
+    "reload-dock": async (e: CustomActionEvent) => {
       if (e.callerType === CustomActionCallerType.CustomDropdownItem) {
         try {
           logger.info('Quick reloading dock...', undefined, 'dock');
@@ -130,7 +145,7 @@ export function dockGetCustomActions() {
       }
     },
 
-    "show-dock-dev-tools": async (e: any) => {
+    "show-dock-dev-tools": async (e: CustomActionEvent) => {
       if (e.callerType === CustomActionCallerType.CustomDropdownItem) {
         try {
           // Get the dock window and show dev tools
@@ -150,7 +165,7 @@ export function dockGetCustomActions() {
       }
     },
 
-    "toggle-provider-window": async (e: any) => {
+    "toggle-provider-window": async (e: CustomActionEvent) => {
       if (e.callerType === CustomActionCallerType.CustomDropdownItem) {
         try {
           // Toggle the provider window visibility
@@ -170,6 +185,16 @@ export function dockGetCustomActions() {
 }
 
 /**
+ * Dropdown option interface
+ */
+interface DropdownOption {
+  tooltip: string;
+  iconUrl: string;
+  action?: { id: string; customData: DockMenuItem | string };
+  options?: DropdownOption[];
+}
+
+/**
  * Convert menu items to dock buttons
  */
 function convertMenuItemsToButtons(items: DockMenuItem[]): DockButton[] {
@@ -177,7 +202,7 @@ function convertMenuItemsToButtons(items: DockMenuItem[]): DockButton[] {
     if (item.children && item.children.length > 0) {
       // Create dropdown button for items with children
       return {
-        type: "DropdownButton" as any,
+        type: "DropdownButton" as const,
         id: item.id,
         tooltip: item.caption,
         iconUrl: item.icon ? buildUrl(item.icon) : buildUrl('/icons/default.svg'),
@@ -193,7 +218,7 @@ function convertMenuItemsToButtons(items: DockMenuItem[]): DockButton[] {
     } else {
       // Create regular button for items without children
       return {
-        type: "CustomButton" as any,
+        type: "CustomButton" as const,
         id: item.id,
         tooltip: item.caption,
         iconUrl: item.icon ? buildUrl(item.icon) : buildUrl('/icons/default.svg'),
@@ -215,15 +240,15 @@ export async function registerDock(config: DockConfig): Promise<void> {
     currentDockConfig = config;
 
     // Build the Applications dropdown options
-    let applicationOptions: any[] = [];
+    let applicationOptions: DropdownOption[] = [];
 
     // Add configured menu items - preserve nested structure for OpenFin dock
     if (config.menuItems && config.menuItems.length > 0) {
       logger.debug('Processing menu items', { count: config.menuItems.length, items: config.menuItems }, 'dock');
 
-      const convertToDropdownOptions = (items: DockMenuItem[]): any[] => {
+      const convertToDropdownOptions = (items: DockMenuItem[]): DropdownOption[] => {
         return items.map(item => {
-          const option: any = {
+          const option: DropdownOption = {
             tooltip: item.caption,
             iconUrl: item.icon ? buildUrl(item.icon) : buildUrl('/icons/default.svg')
           };
@@ -253,7 +278,7 @@ export async function registerDock(config: DockConfig): Promise<void> {
 
     // Add legacy apps if present
     if (config.apps && config.apps.length > 0) {
-      const appOptions = config.apps.map((app: any) => ({
+      const appOptions = config.apps.map((app) => ({
         tooltip: app.title,
         iconUrl: app.icons?.[0]?.src || config.icon,
         action: { id: "launch-app", customData: app }
@@ -262,16 +287,16 @@ export async function registerDock(config: DockConfig): Promise<void> {
     }
 
     // Always use the standard dock structure with Applications, Theme, and Tools
-    const buttons = [
+    const buttons: DockButton[] = [
       {
-        type: "DropdownButton" as any,
+        type: "DropdownButton" as const,
         id: "apps-dropdown",
         tooltip: "Applications",
         iconUrl: buildUrl("/icons/app.svg"),
         options: applicationOptions
       },
       {
-        type: "DropdownButton" as any,
+        type: "DropdownButton" as const,
         id: "theme-dropdown",
         tooltip: "Theme",
         iconUrl: buildUrl("/icons/theme-switch.svg"),
@@ -289,7 +314,7 @@ export async function registerDock(config: DockConfig): Promise<void> {
         ]
       },
       {
-        type: "DropdownButton" as any,
+        type: "DropdownButton" as const,
         id: "tools-dropdown",
         tooltip: "Tools",
         iconUrl: buildUrl("/icons/tools.svg"),

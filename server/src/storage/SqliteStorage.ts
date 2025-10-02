@@ -43,7 +43,8 @@ export class SqliteStorage implements IConfigurationStorage {
   async disconnect(): Promise<void> {
     if (this.db) {
       this.db.close();
-      this.db = null as any; // Set to null so healthCheck can detect disconnected state
+      // @ts-expect-error - Intentionally setting to null to allow healthCheck to detect disconnected state
+      this.db = null;
     }
   }
 

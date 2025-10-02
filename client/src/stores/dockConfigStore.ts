@@ -208,15 +208,12 @@ export const useDockConfigStore = create<DockConfigStore>()(
         return;
       }
 
-      console.log('[Dock MenuItem] === SAVE START ===');
-      console.log('[Dock MenuItem] menuItemsCount:', currentConfig.config?.menuItems?.length);
-      console.log('[Dock MenuItem] All menu items:', JSON.stringify(currentConfig.config?.menuItems, null, 2));
-
-      logger.info('[Dock MenuItem] Saving configuration', {
+      logger.info('Saving configuration', {
         configId: currentConfig.configId,
         name: currentConfig.name,
         menuItemsCount: currentConfig.config?.menuItems?.length
       }, 'dockConfigStore');
+      logger.debug('Save - All menu items', currentConfig.config?.menuItems, 'dockConfigStore');
 
       set({
         isLoading: true,
@@ -241,22 +238,19 @@ export const useDockConfigStore = create<DockConfigStore>()(
             lastUpdatedBy: currentConfig.lastUpdatedBy
           };
 
-          console.log('[Dock MenuItem] Sending to server:', updates.config?.menuItems?.length, 'items');
-
-          logger.info('[Dock MenuItem] Updating existing config', {
+          logger.info('Updating existing config', {
             configId: currentConfig.configId,
             menuItemsInUpdate: updates.config?.menuItems?.length
           }, 'dockConfigStore');
+          logger.debug('Sending menu items to server', updates.config?.menuItems, 'dockConfigStore');
 
           const updated = await dockConfigService.update(currentConfig.configId, updates);
 
-          console.log('[Dock MenuItem] Server returned:', updated.config?.menuItems?.length, 'items');
-          console.log('[Dock MenuItem] Returned items:', JSON.stringify(updated.config?.menuItems, null, 2));
-
-          logger.info('[Dock MenuItem] Update successful', {
+          logger.info('Update successful', {
             configId: updated.configId,
             menuItemsReturned: updated.config?.menuItems?.length
           }, 'dockConfigStore');
+          logger.debug('Server returned menu items', updated.config?.menuItems, 'dockConfigStore');
         } else {
           // For new configs, send the full config
           const configToSave = {
@@ -322,10 +316,11 @@ export const useDockConfigStore = create<DockConfigStore>()(
       const newItem = item || createMenuItem();
       let newMenuItems = [...state.currentConfig.config.menuItems];
 
-      console.log('[Dock MenuItem] === ADD ITEM ===');
-      console.log('[Dock MenuItem] Current items:', newMenuItems.length);
-      console.log('[Dock MenuItem] New item:', newItem.caption);
-      console.log('[Dock MenuItem] Parent:', parent?.caption || 'ROOT');
+      logger.debug('Adding menu item', {
+        currentItemsCount: newMenuItems.length,
+        newItemCaption: newItem.caption,
+        parentCaption: parent?.caption || 'ROOT'
+      }, 'dockConfigStore');
 
       if (parent) {
         // Add as child
@@ -337,7 +332,7 @@ export const useDockConfigStore = create<DockConfigStore>()(
         newMenuItems.push(newItem);
       }
 
-      console.log('[Dock MenuItem] After add, total items:', newMenuItems.length);
+      logger.debug('Menu item added', { totalItemsCount: newMenuItems.length }, 'dockConfigStore');
 
       // Save to history
       const newHistory = {

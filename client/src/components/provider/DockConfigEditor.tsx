@@ -52,7 +52,7 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
   // Load configuration on mount
   useEffect(() => {
     store.loadConfig(userId);
-  }, [userId]);
+  }, [userId, store]);
 
   // Auto-save draft every 30 seconds
   useEffect(() => {
@@ -63,7 +63,7 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
     }, 30000);
 
     return () => clearTimeout(timer);
-  }, [store.isDirty, store.currentConfig]);
+  }, [store.isDirty, store.currentConfig, handleSaveDraft]);
 
   const handleSaveDraft = useCallback(() => {
     if (store.currentConfig) {
@@ -77,7 +77,6 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
 
   const handleSave = useCallback(async () => {
     logger.debug('Save button clicked', undefined, 'DockConfigEditor');
-    logger.debug('Current config:', store.currentConfig, 'DockConfigEditor');
 
     if (!store.currentConfig) {
       logger.error('No current config available', undefined, 'DockConfigEditor');
@@ -89,7 +88,7 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
       return;
     }
 
-    // Validate configuration before saving (configId not required for new configs)
+    // Validate configuration before saving
     const validation = validateDockConfiguration(store.currentConfig);
     logger.debug('Validation result', validation, 'DockConfigEditor');
 
@@ -103,9 +102,18 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
       return;
     }
 
+    const menuItemCount = store.currentConfig.config?.menuItems?.length || 0;
+    const configName = store.currentConfig.name;
+
     try {
       logger.info('Calling store.saveConfig()', undefined, 'DockConfigEditor');
       await store.saveConfig();
+
+      // Check if save actually succeeded by checking the error state
+      if (store.error) {
+        throw new Error(store.error);
+      }
+
       logger.info('Save completed successfully', undefined, 'DockConfigEditor');
 
       // Reload the dock to show the updated configuration
@@ -130,14 +138,15 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
       }
 
       toast({
-        title: 'Configuration saved',
-        description: 'Your dock configuration has been saved and reloaded',
+        title: 'Configuration saved successfully',
+        description: `Saved "${configName}" with ${menuItemCount} menu item(s). Dock has been reloaded.`,
       });
     } catch (error) {
       logger.error('Save failed in component', error, 'DockConfigEditor');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save configuration';
       toast({
         title: 'Save failed',
-        description: error instanceof Error ? error.message : 'Failed to save configuration',
+        description: `Could not save "${configName}": ${errorMessage}`,
         variant: 'destructive'
       });
     }
