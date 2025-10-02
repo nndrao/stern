@@ -52,7 +52,22 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
   // Load configuration on mount
   useEffect(() => {
     store.loadConfig(userId);
-  }, [userId, store]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  const handleSaveDraft = useCallback(() => {
+    const currentConfig = store.currentConfig;
+    if (currentConfig) {
+      localStorage.setItem('dock-config-draft', JSON.stringify(currentConfig));
+      toast({
+        title: 'Draft saved',
+        description: 'Your changes have been saved locally',
+      });
+    }
+    // Note: Intentionally not including store.currentConfig in deps to avoid infinite loops
+    // We read the latest value directly from the store closure
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-save draft every 30 seconds
   useEffect(() => {
@@ -63,17 +78,9 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
     }, 30000);
 
     return () => clearTimeout(timer);
-  }, [store.isDirty, store.currentConfig, handleSaveDraft]);
-
-  const handleSaveDraft = useCallback(() => {
-    if (store.currentConfig) {
-      localStorage.setItem('dock-config-draft', JSON.stringify(store.currentConfig));
-      toast({
-        title: 'Draft saved',
-        description: 'Your changes have been saved locally',
-      });
-    }
-  }, [store.currentConfig, toast]);
+    // Only re-run when isDirty changes, not when config changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store.isDirty]);
 
   const handleSave = useCallback(async () => {
     logger.debug('Save button clicked', undefined, 'DockConfigEditor');

@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { init } from '@openfin/workspace-platform';
-import { ThemeProvider } from '@/components/theme-provider';
 import { OpenFinWorkspaceProvider } from '@/services/openfin/OpenFinWorkspaceProvider';
 import { Sidebar } from '@/components/provider/Sidebar';
 import { DockConfigEditor } from '@/components/provider/DockConfigEditor';
@@ -101,68 +100,73 @@ export default function Provider() {
         await init({
           browser: {},
           theme: [{
-          label: "Default",
-          default: "light",
-          palettes: {
-            light: {
-              brandPrimary: "#0A76D3",
-              brandSecondary: "#1E1F23",
-              backgroundPrimary: "#FAFBFE",
-              background1: "#FFFFFF",
-              background2: "#FAFBFE",
-              background3: "#F3F5F8",
-              background4: "#ECEEF1",
-              background5: "#DDDFE4",
-              background6: "#C9CBD2",
-              statusSuccess: "#35C759",
-              statusWarning: "#F48F00",
-              statusCritical: "#BE1700",
-              statusActive: "#0498FB",
-              inputBackground: "#ECEEF1",
-              inputColor: "#1E1F23",
-              inputPlaceholder: "#6D7178",
-              inputDisabled: "#7D808A",
-              inputFocused: "#C9CBD2",
-              textDefault: "#1E1F23",
-              textHelp: "#2F3136",
-              textInactive: "#7D808A"
-            },
-            dark: {
-              brandPrimary: "#0A76D3",
-              brandSecondary: "#383A47",
-              backgroundPrimary: "#1E1F23",
-              background1: "#111214",
-              background2: "#2F3136",
-              background3: "#383A47",
-              background4: "#4B4C58",
-              background5: "#5E606A",
-              background6: "#71747C",
-              statusSuccess: "#35C759",
-              statusWarning: "#F48F00",
-              statusCritical: "#BE1700",
-              statusActive: "#0498FB",
-              inputBackground: "#53555F",
-              inputColor: "#FFFFFF",
-              inputPlaceholder: "#C9CBD2",
-              inputDisabled: "#7D808A",
-              inputFocused: "#71747C",
-              textDefault: "#FFFFFF",
-              textHelp: "#C9CBD2",
-              textInactive: "#7D808A"
+            label: "Default",
+            default: "light",
+            palettes: {
+              light: {
+                brandPrimary: "#0A76D3",
+                brandSecondary: "#1E1F23",
+                backgroundPrimary: "#FAFBFE",
+                background1: "#FFFFFF",
+                background2: "#FAFBFE",
+                background3: "#F3F5F8",
+                background4: "#ECEEF1",
+                background5: "#DDDFE4",
+                background6: "#C9CBD2",
+                statusSuccess: "#35C759",
+                statusWarning: "#F48F00",
+                statusCritical: "#BE1700",
+                statusActive: "#0498FB",
+                inputBackground: "#ECEEF1",
+                inputColor: "#1E1F23",
+                inputPlaceholder: "#6D7178",
+                inputDisabled: "#7D808A",
+                inputFocused: "#C9CBD2",
+                textDefault: "#1E1F23",
+                textHelp: "#2F3136",
+                textInactive: "#7D808A"
+              },
+              dark: {
+                brandPrimary: "#0A76D3",
+                brandSecondary: "#383A47",
+                backgroundPrimary: "#1E1F23",
+                background1: "#111214",
+                background2: "#2F3136",
+                background3: "#383A47",
+                background4: "#4B4C58",
+                background5: "#5E606A",
+                background6: "#71747C",
+                statusSuccess: "#35C759",
+                statusWarning: "#F48F00",
+                statusCritical: "#BE1700",
+                statusActive: "#0498FB",
+                inputBackground: "#53555F",
+                inputColor: "#FFFFFF",
+                inputPlaceholder: "#C9CBD2",
+                inputDisabled: "#7D808A",
+                inputFocused: "#71747C",
+                textDefault: "#FFFFFF",
+                textHelp: "#C9CBD2",
+                textInactive: "#7D808A"
+              }
             }
-          }
-        }],
-        customActions: dockGetCustomActions()
-      });
+          }],
+          customActions: dockGetCustomActions()
+        });
 
-      logger.info('Platform initialized, waiting for platform-api-ready...', undefined, 'Provider');
-    } catch (initError: any) {
-      logger.error('Failed to initialize workspace platform', initError, 'Provider');
-      // Continue anyway - the UI should still work
-      if (initError?.message?.includes('system topic payload')) {
-        logger.info('Skipping workspace platform features due to initialization error', undefined, 'Provider');
+        logger.info('Platform initialized, waiting for platform-api-ready...', undefined, 'Provider');
+      } catch (initError: unknown) {
+        const error = initError as Error;
+        logger.error('Failed to initialize workspace platform', error, 'Provider');
+        // Continue anyway - the UI should still work
+        if (error?.message?.includes('system topic payload')) {
+          logger.warn('OpenFin workspace initialization failed with usage tracking error - this is expected in some environments', undefined, 'Provider');
+          logger.info('Continuing with platform initialization despite error', undefined, 'Provider');
+        } else {
+          // Re-throw if it's a different error
+          throw error;
+        }
       }
-    }
 
       // Get the current platform
       try {
@@ -282,11 +286,9 @@ export default function Provider() {
   );
 
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="stern-theme">
-      <OpenFinWorkspaceProvider>
-        <DashboardContent />
-        <Toaster />
-      </OpenFinWorkspaceProvider>
-    </ThemeProvider>
+    <OpenFinWorkspaceProvider>
+      <DashboardContent />
+      <Toaster />
+    </OpenFinWorkspaceProvider>
   );
 }
