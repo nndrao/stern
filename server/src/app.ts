@@ -33,13 +33,8 @@ export async function createApp(): Promise<express.Application> {
     crossOriginResourcePolicy: { policy: "cross-origin" }
   }));
 
-  // CORS configuration
-  app.use(cors({
-    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000', 'http://localhost:5173'],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-app-id', 'x-user-id']
-  }));
+  // CORS configuration - All restrictions removed
+  app.use(cors());
 
   // Rate limiting
   const limiter = rateLimit({

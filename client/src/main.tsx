@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import App from './App.tsx';
 import { ThemeProvider } from './components/theme-provider';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { OpenFinWorkspaceProvider } from './services/openfin/OpenFinWorkspaceProvider';
 import './index.css';
 
 const PlatformProvider = lazy(() => import('./platform/Provider'));
@@ -27,19 +28,21 @@ createRoot(document.getElementById('root')!).render(
         enableSystem
         disableTransitionOnChange
       >
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<App />} />
-            <Route
-              path="/platform/provider"
-              element={
-                <Suspense fallback={<LoadingFallback />}>
-                  <PlatformProvider />
-                </Suspense>
-              }
-            />
-          </Routes>
-        </BrowserRouter>
+        <OpenFinWorkspaceProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<App />} />
+              <Route
+                path="/platform/provider"
+                element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PlatformProvider />
+                  </Suspense>
+                }
+              />
+            </Routes>
+          </BrowserRouter>
+        </OpenFinWorkspaceProvider>
       </ThemeProvider>
     </ErrorBoundary>
   </StrictMode>

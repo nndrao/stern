@@ -1,16 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { ConfigurationService } from '../services/ConfigurationService';
-import { 
-  createConfigSchema,
-  updateConfigSchema,
-  configurationFilterSchema,
-  paginationSchema,
-  cloneConfigSchema,
-  bulkCreateSchema,
-  bulkUpdateSchema,
-  bulkDeleteSchema,
-  cleanupSchema
-} from '../utils/validation';
 import logger from '../utils/logger';
 
 /**
@@ -24,20 +13,6 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 
-  // Validation middleware
-  const validateBody = (schema: any) => (req: Request, res: Response, next: NextFunction): void => {
-    const { error, value } = schema.validate(req.body);
-    if (error) {
-      res.status(400).json({
-        error: 'Validation failed',
-        details: error.details.map((d: any) => d.message)
-      });
-      return;
-    }
-    req.body = value;
-    next();
-  };
-
 
   // Basic CRUD Operations
 
@@ -45,12 +20,11 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
    * POST /api/v1/configurations
    * Create a new configuration
    */
-  router.post('/', 
-    validateBody(createConfigSchema),
+  router.post('/',
     asyncHandler(async (req: Request, res: Response) => {
-      logger.info('Creating new configuration', { 
+      logger.info('Creating new configuration', {
         componentType: req.body.componentType,
-        userId: req.body.userId 
+        userId: req.body.userId
       });
 
       const result = await configService.createConfiguration(req.body);
@@ -65,11 +39,10 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
    * Bulk create configurations
    */
   router.post('/bulk',
-    validateBody(bulkCreateSchema),
     asyncHandler(async (req: Request, res: Response) => {
       const { configs } = req.body;
-      
-      logger.info('Bulk creating configurations', { count: configs.length });
+
+      logger.info('Bulk creating configurations', { count: configs?.length || 0 });
 
       const result = await configService.bulkCreateConfigurations(configs);
       return res.status(201).json(result);
@@ -81,11 +54,10 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
    * Bulk update configurations
    */
   router.put('/bulk',
-    validateBody(bulkUpdateSchema),
     asyncHandler(async (req: Request, res: Response) => {
       const { updates } = req.body;
-      
-      logger.info('Bulk updating configurations', { count: updates.length });
+
+      logger.info('Bulk updating configurations', { count: updates?.length || 0 });
 
       const result = await configService.bulkUpdateConfigurations(updates);
       return res.json(result);
@@ -97,11 +69,10 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
    * Bulk delete configurations
    */
   router.delete('/bulk',
-    validateBody(bulkDeleteSchema),
     asyncHandler(async (req: Request, res: Response) => {
       const { configIds } = req.body;
-      
-      logger.info('Bulk deleting configurations', { count: configIds.length });
+
+      logger.info('Bulk deleting configurations', { count: configIds?.length || 0 });
 
       const result = await configService.bulkDeleteConfigurations(configIds);
       return res.json({ results: result });
@@ -134,10 +105,9 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
    * Update configuration
    */
   router.put('/:configId',
-    validateBody(updateConfigSchema),
     asyncHandler(async (req: Request, res: Response) => {
       const { configId } = req.params;
-      
+
       logger.info('Updating configuration', { configId });
 
       try {
@@ -179,11 +149,10 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
    * Clone existing configuration
    */
   router.post('/:configId/clone',
-    validateBody(cloneConfigSchema),
     asyncHandler(async (req: Request, res: Response) => {
       const { configId } = req.params;
       const { newName, userId } = req.body;
-      
+
       logger.info('Cloning configuration', { configId, newName, userId });
 
       try {
@@ -207,47 +176,27 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
   router.get('/',
     asyncHandler(async (req: Request, res: Response) => {
       const { page, limit, sortBy, sortOrder, ...filterParams } = req.query;
-      
-      logger.debug('Querying configurations', { 
-        hasPage: !!page, 
-        filterKeys: Object.keys(filterParams) 
-      });
 
-      // Validate filter
-      const { error: filterError, value: filter } = configurationFilterSchema.validate(filterParams);
-      if (filterError) {
-        return res.status(400).json({
-          error: 'Filter validation failed',
-          details: filterError.details.map((d: any) => d.message)
-        });
-      }
+      logger.debug('Querying configurations', {
+        hasPage: !!page,
+        filterKeys: Object.keys(filterParams)
+      });
 
       // If pagination parameters are provided, use paginated query
       if (page || limit) {
-        const { error: paginationError, value: paginationParams } = paginationSchema.validate({
-          page, limit, sortBy, sortOrder
-        });
-        
-        if (paginationError) {
-          return res.status(400).json({
-            error: 'Pagination validation failed',
-            details: paginationError.details.map((d: any) => d.message)
-          });
-        }
-
         const result = await configService.queryConfigurationsWithPagination(
-          filter,
-          paginationParams.page,
-          paginationParams.limit,
-          paginationParams.sortBy,
-          paginationParams.sortOrder
+          filterParams,
+          page ? parseInt(page as string) : 1,
+          limit ? parseInt(limit as string) : 10,
+          sortBy as string,
+          sortOrder as 'asc' | 'desc'
         );
-        
+
         return res.json(result);
       }
 
       // Regular query without pagination
-      const result = await configService.queryConfigurations(filter);
+      const result = await configService.queryConfigurations(filterParams);
       return res.json(result);
     })
   );
@@ -330,10 +279,9 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
    * Clean up old deleted configurations
    */
   router.post('/system/cleanup',
-    validateBody(cleanupSchema),
     asyncHandler(async (req: Request, res: Response) => {
       const { dryRun } = req.body;
-      
+
       logger.info('Running cleanup operation', { dryRun });
 
       const result = await configService.cleanupDeletedConfigurations(dryRun);

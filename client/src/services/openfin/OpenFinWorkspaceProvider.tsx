@@ -4,9 +4,14 @@
  */
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Dock } from '@openfin/workspace';
-import { getCurrentSync } from '@openfin/workspace-platform';
 import { logger } from '@/utils/logger';
+
+// Dynamically import OpenFin modules only when needed
+let Dock: any = null;
+let getCurrentSync: any = null;
+
+// Check if we're in OpenFin environment
+const isOpenFinEnvironment = typeof window !== 'undefined' && 'fin' in window;
 
 /**
  * OpenFin Workspace Services Interface
@@ -181,7 +186,15 @@ const createMockServices = (): OpenFinWorkspaceServices => ({
 /**
  * Create OpenFin services
  */
-const createOpenFinServices = (): OpenFinWorkspaceServices => {
+const createOpenFinServices = async (): Promise<OpenFinWorkspaceServices> => {
+  // Dynamically import OpenFin modules
+  if (!Dock || !getCurrentSync) {
+    const workspaceModule = await import('@openfin/workspace');
+    const platformModule = await import('@openfin/workspace-platform');
+    Dock = workspaceModule.Dock;
+    getCurrentSync = platformModule.getCurrentSync;
+  }
+
   const platform = getCurrentSync();
 
   return {
@@ -212,7 +225,17 @@ const createOpenFinServices = (): OpenFinWorkspaceServices => {
       return await platform.createView(options);
     },
     getCurrentWindow: () => {
-      return fin.Window.getCurrentSync();
+      try {
+        return fin.Window.getCurrentSync();
+      } catch {
+        // If in a view, get the parent window
+        try {
+          const view = fin.View.getCurrentSync();
+          return view.getCurrentWindow();
+        } catch {
+          return null;
+        }
+      }
     },
     getCurrentView: () => {
       try {
@@ -355,15 +378,15 @@ export const OpenFinWorkspaceProvider: React.FC<{
     const initializeServices = async () => {
       try {
         // Check if we're in OpenFin environment
-        if (typeof window !== 'undefined' && window.fin) {
+        if (isOpenFinEnvironment) {
           logger.info('Initializing OpenFin workspace services...', undefined, 'OpenFinWorkspaceProvider');
 
           // Wait for OpenFin to be ready
           // Note: fin.ready() is deprecated in newer versions
           // The workspace platform APIs should be ready when fin is available
 
-          // Create OpenFin services
-          const openFinServices = createOpenFinServices();
+          // Create OpenFin services (async now)
+          const openFinServices = await createOpenFinServices();
           setServices(openFinServices);
 
           logger.info('OpenFin workspace services initialized', undefined, 'OpenFinWorkspaceProvider');
