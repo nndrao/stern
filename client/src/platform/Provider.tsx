@@ -3,8 +3,9 @@ import { init } from '@openfin/workspace-platform';
 import { OpenFinWorkspaceProvider } from '@/services/openfin/OpenFinWorkspaceProvider';
 import { Sidebar } from '@/components/provider/Sidebar';
 import { DockConfigEditor } from '@/components/provider/DockConfigEditor';
+import { DataProviderEditor } from '@/components/provider/DataProviderEditor';
 import { Toaster } from '@/components/ui/toaster';
-import { dockGetCustomActions, registerDock, showDock, isDockAvailable, registerDockFromConfig } from './dock';
+import * as dock from './dock';
 import { initializeBaseUrlFromManifest, buildUrl } from '../openfin-utils';
 import { logger } from '@/utils/logger';
 import { dockConfigService } from '@/services/dockConfigService';
@@ -84,6 +85,17 @@ export default function Provider() {
     try {
       logger.info('Starting OpenFin platform initialization...', undefined, 'Provider');
 
+      // Suppress OpenFin analytics errors globally
+      // These are non-fatal and occur when analytics payload format is incorrect
+      const originalConsoleError = console.error;
+      window.addEventListener('unhandledrejection', (event) => {
+        if (event.reason?.message?.includes('system topic payload') ||
+            event.reason?.message?.includes('registerUsage')) {
+          logger.warn('Suppressed analytics error (non-fatal)', event.reason, 'Provider');
+          event.preventDefault(); // Prevent error from showing in console
+        }
+      });
+
       // Get settings from manifest
       const settings = await getManifestCustomSettings();
       const apps = settings.customSettings.apps || [];
@@ -96,62 +108,29 @@ export default function Provider() {
 
       // Wrap in try-catch to handle initialization errors
       try {
-        // Minimal initialization to avoid registration errors
+        // Initialize following OpenFin workspace-starter patterns
+        // IMPORTANT: Do NOT include analytics config - omitting it disables analytics entirely
+        // Including analytics: { sendToOpenFin: false } still triggers analytics initialization
         await init({
-          browser: {},
+          browser: {
+            defaultWindowOptions: {
+              icon: settings.platformSettings.icon,
+              workspacePlatform: {
+                pages: [],
+                favicon: settings.platformSettings.icon
+              }
+            }
+          },
           theme: [{
             label: "Default",
             default: "light",
-            palettes: {
-              light: {
-                brandPrimary: "#0A76D3",
-                brandSecondary: "#1E1F23",
-                backgroundPrimary: "#FAFBFE",
-                background1: "#FFFFFF",
-                background2: "#FAFBFE",
-                background3: "#F3F5F8",
-                background4: "#ECEEF1",
-                background5: "#DDDFE4",
-                background6: "#C9CBD2",
-                statusSuccess: "#35C759",
-                statusWarning: "#F48F00",
-                statusCritical: "#BE1700",
-                statusActive: "#0498FB",
-                inputBackground: "#ECEEF1",
-                inputColor: "#1E1F23",
-                inputPlaceholder: "#6D7178",
-                inputDisabled: "#7D808A",
-                inputFocused: "#C9CBD2",
-                textDefault: "#1E1F23",
-                textHelp: "#2F3136",
-                textInactive: "#7D808A"
-              },
-              dark: {
-                brandPrimary: "#0A76D3",
-                brandSecondary: "#383A47",
-                backgroundPrimary: "#1E1F23",
-                background1: "#111214",
-                background2: "#2F3136",
-                background3: "#383A47",
-                background4: "#4B4C58",
-                background5: "#5E606A",
-                background6: "#71747C",
-                statusSuccess: "#35C759",
-                statusWarning: "#F48F00",
-                statusCritical: "#BE1700",
-                statusActive: "#0498FB",
-                inputBackground: "#53555F",
-                inputColor: "#FFFFFF",
-                inputPlaceholder: "#C9CBD2",
-                inputDisabled: "#7D808A",
-                inputFocused: "#71747C",
-                textDefault: "#FFFFFF",
-                textHelp: "#C9CBD2",
-                textInactive: "#7D808A"
-              }
+            palette: {
+              brandPrimary: "#0A76D3",
+              brandSecondary: "#1E1F23",
+              backgroundPrimary: "#FAFBFE"
             }
           }],
-          customActions: dockGetCustomActions()
+          customActions: dock.dockGetCustomActions()
         });
 
         logger.info('Platform initialized, waiting for platform-api-ready...', undefined, 'Provider');
@@ -181,50 +160,93 @@ export default function Provider() {
           await new Promise(resolve => setTimeout(resolve, 500));
 
           // Check if Dock is available
-          if (isDockAvailable()) {
+          if (dock.isDockAvailable()) {
             // Try to load saved dock configuration from API
             try {
-              logger.info('Loading saved dock configuration from API...', undefined, 'Provider');
+              console.log('[DOCK_CONFIG] Step 1: Loading DockApplicationsMenuItems configuration from API...');
+              logger.info('Loading DockApplicationsMenuItems configuration from API...', undefined, 'Provider');
               const userId = 'default-user'; // TODO: Get from auth service
-              const configs = await dockConfigService.loadByUser(userId);
+              console.log('[DOCK_CONFIG] Step 2: Fetching singleton config for userId:', userId);
+              const menuItemsConfig = await dockConfigService.loadApplicationsMenuItems(userId);
+              console.log('[DOCK_CONFIG] Step 3: API returned config:', menuItemsConfig ? 'Found' : 'Not found');
+              if (menuItemsConfig) {
+                console.log('[DOCK_CONFIG] Step 3a: Full config response:', JSON.stringify(menuItemsConfig, null, 2));
+              }
 
-              if (configs && configs.length > 0) {
-                // Use the first configuration (or the default one)
-                const defaultConfig = configs.find(c => c.isDefault) || configs[0];
-                logger.info('Loaded dock config from API', {
-                  configId: defaultConfig.configId,
-                  name: defaultConfig.name,
-                  menuItemsCount: defaultConfig.config?.menuItems?.length
+              if (menuItemsConfig && menuItemsConfig.config?.menuItems) {
+                console.log('[DOCK_CONFIG] Step 4: Found singleton config:', {
+                  configId: menuItemsConfig.configId,
+                  name: menuItemsConfig.name,
+                  componentType: menuItemsConfig.componentType,
+                  componentSubType: menuItemsConfig.componentSubType,
+                  menuItemsCount: menuItemsConfig.config.menuItems.length
+                });
+                console.log('[DOCK_CONFIG] Step 5: Menu items structure:', JSON.stringify(menuItemsConfig.config.menuItems, null, 2));
+
+                logger.info('Loaded DockApplicationsMenuItems config', {
+                  configId: menuItemsConfig.configId,
+                  name: menuItemsConfig.name,
+                  menuItemsCount: menuItemsConfig.config.menuItems.length
                 }, 'Provider');
-                logger.debug('Full config menuItems', defaultConfig.config?.menuItems, 'Provider');
 
-                // Register dock with saved configuration
-                await registerDockFromConfig(defaultConfig);
-                logger.info('Dock registered with saved configuration', undefined, 'Provider');
+                // Convert DockApplicationsMenuItemsConfig to DockConfiguration for backwards compatibility
+                const dockConfig = {
+                  ...menuItemsConfig,
+                  componentType: 'dock' as const,
+                  componentSubType: 'default' as const
+                };
+
+                // Register dock with saved configuration (suppress analytics errors)
+                try {
+                  await dock.registerFromConfig(dockConfig);
+                  logger.info('Dock registered with DockApplicationsMenuItems configuration', undefined, 'Provider');
+                } catch (dockError: any) {
+                  if (dockError?.message?.includes('system topic payload')) {
+                    logger.warn('Dock registered successfully (analytics error suppressed)', undefined, 'Provider');
+                  } else {
+                    throw dockError;
+                  }
+                }
               } else {
-                logger.info('No saved dock configuration found, using manifest apps', undefined, 'Provider');
-                // Fallback to manifest apps
-                await registerDock({
+                logger.info('No DockApplicationsMenuItems configuration found, using default', undefined, 'Provider');
+                // Fallback to empty dock with system buttons (suppress analytics errors)
+                try {
+                  await dock.register({
+                    id: settings.platformSettings.id,
+                    title: settings.platformSettings.title,
+                    icon: settings.platformSettings.icon,
+                    menuItems: []
+                  });
+                  logger.info('Dock registered with default configuration', undefined, 'Provider');
+                } catch (dockError: any) {
+                  if (dockError?.message?.includes('system topic payload')) {
+                    logger.warn('Dock registered successfully (analytics error suppressed)', undefined, 'Provider');
+                  } else {
+                    throw dockError;
+                  }
+                }
+              }
+            } catch (apiError) {
+              logger.warn('Failed to load dock config from API, using default', apiError, 'Provider');
+              // Fallback to empty dock (suppress analytics errors)
+              try {
+                await dock.register({
                   id: settings.platformSettings.id,
                   title: settings.platformSettings.title,
                   icon: settings.platformSettings.icon,
-                  apps: apps
+                  menuItems: []
                 });
-                logger.info('Dock registered with manifest apps', undefined, 'Provider');
+              } catch (dockError: any) {
+                if (dockError?.message?.includes('system topic payload')) {
+                  logger.warn('Dock registered successfully (analytics error suppressed)', undefined, 'Provider');
+                } else {
+                  throw dockError;
+                }
               }
-            } catch (apiError) {
-              logger.warn('Failed to load dock config from API, falling back to manifest', apiError, 'Provider');
-              // Fallback to manifest apps
-              await registerDock({
-                id: settings.platformSettings.id,
-                title: settings.platformSettings.title,
-                icon: settings.platformSettings.icon,
-                apps: apps
-              });
             }
 
             // Show dock after registration
-            await showDock();
+            await dock.show();
           } else {
             logger.warn('Dock API not available - skipping dock registration', undefined, 'Provider');
             logger.info('Make sure @openfin/workspace package is properly installed', undefined, 'Provider');
@@ -279,6 +301,7 @@ export default function Provider() {
       />
       <main className="flex-1 overflow-hidden">
         {activeTab === 'dock' && <DockConfigEditor />}
+        {activeTab === 'providers' && <DataProviderEditor />}
         {activeTab === 'settings' && <SettingsPanel />}
         {activeTab === 'help' && <HelpPanel />}
       </main>

@@ -1,19 +1,79 @@
-import { getCurrentSync, CustomActionCallerType } from '@openfin/workspace-platform';
-import { Dock } from '@openfin/workspace';
+/**
+ * OpenFin Dock Provider - Following workspace-starter patterns
+ *
+ * This module implements the OpenFin Workspace Dock following the exact patterns
+ * from workspace-starter examples. All implementations are based on:
+ * - workspace-starter/how-to/register-with-dock-basic
+ * - workspace-starter/how-to/workspace-platform-starter
+ *
+ * Key Principles:
+ * 1. Use Dock.register() from @openfin/workspace (not custom window management)
+ * 2. Custom actions must be registered BEFORE dock registration in platform init()
+ * 3. Use updateDockProviderConfig() for updates, not deregister/register
+ * 4. For full reload: deregister -> wait 500ms -> register -> show
+ * 5. Developer tools require searching through all windows/apps
+ *
+ * @module dock
+ */
+
+import {
+  Dock,
+  DockButtonNames,
+  type DockButton,
+  type DockProviderRegistration,
+  type DockProviderConfig,
+  type WorkspaceButtonsConfig
+} from '@openfin/workspace';
+import {
+  CustomActionCallerType,
+  getCurrentSync,
+  type CustomActionPayload,
+  type CustomActionsMap
+} from '@openfin/workspace-platform';
 import { buildUrl } from '../openfin-utils';
-import { DockMenuItem, DockConfiguration, DockButton, DockButtonOption } from '../types/dockConfig';
+import { DockConfiguration, DockMenuItem } from '../types/dockConfig';
 import { launchMenuItem } from './menuLauncher';
 import { logger } from '@/utils/logger';
 
+// ============================================================================
+// Module State
+// ============================================================================
+
 /**
- * Check if Dock API is available
+ * Current dock registration - stored for reload operations
+ */
+let registration: DockProviderRegistration | undefined;
+
+/**
+ * Current dock configuration - stored for reload operations
+ */
+let currentConfig: DockProviderConfig | undefined;
+
+/**
+ * Platform settings - stored during initialization
+ */
+let platformSettings: {
+  id: string;
+  title: string;
+  icon: string;
+} | undefined;
+
+// ============================================================================
+// Public API
+// ============================================================================
+
+/**
+ * Check if Dock API is available in the current environment
+ *
+ * @returns True if Dock API is available
  */
 export function isDockAvailable(): boolean {
   try {
-    // Check if Dock is imported and has the required methods
-    return typeof Dock !== 'undefined' &&
-           typeof Dock.register === 'function' &&
-           typeof Dock.show === 'function';
+    return (
+      typeof Dock !== 'undefined' &&
+      typeof Dock.register === 'function' &&
+      typeof Dock.show === 'function'
+    );
   } catch (error) {
     logger.error('Error checking dock availability', error, 'dock');
     return false;
@@ -21,71 +81,284 @@ export function isDockAvailable(): boolean {
 }
 
 /**
- * Interface for dock configuration
+ * Register the dock provider with OpenFin Workspace
+ *
+ * This follows the exact pattern from workspace-starter/register-with-dock-basic.
+ * The dock is registered with custom buttons and workspace components.
+ *
+ * @param config - Dock configuration with platform settings and menu items
+ * @returns Registration info if successful, undefined otherwise
  */
-interface DockConfig {
+export async function register(config: {
   id: string;
   title: string;
   icon: string;
-  apps: Array<{
-    appId: string;
-    title: string;
-    manifestType?: string;
-    url?: string;
-    manifest?: string;
-    icons?: Array<{ src: string }>;
-  }>;
-  menuItems?: DockMenuItem[]; // For dynamic configuration
+  workspaceComponents?: WorkspaceButtonsConfig;
+  disableUserRearrangement?: boolean;
+  menuItems?: DockMenuItem[];
+}): Promise<DockProviderRegistration | undefined> {
+  try {
+    console.log('[DOCK_CONFIG] Step 9: register() called with:', {
+      id: config.id,
+      title: config.title,
+      menuItemsCount: config.menuItems?.length
+    });
+    logger.info('Registering dock provider', { id: config.id, title: config.title }, 'dock');
+
+    // Store platform settings for reload operations
+    platformSettings = {
+      id: config.id,
+      title: config.title,
+      icon: config.icon
+    };
+
+    // Build dock buttons
+    const buttons: DockButton[] = [];
+
+    // Add Applications dropdown with all menu items
+    if (config.menuItems && config.menuItems.length > 0) {
+      console.log('[DOCK_CONFIG] Step 10: Building Applications button with', config.menuItems.length, 'menu items');
+      console.log('[DOCK_CONFIG] Step 11: Menu items passed to buildApplicationsButton:', JSON.stringify(config.menuItems, null, 2));
+      buttons.push(buildApplicationsButton(config.menuItems));
+      console.log('[DOCK_CONFIG] Step 12: Applications button created');
+    } else {
+      console.log('[DOCK_CONFIG] Step 10: No menu items - skipping Applications button');
+    }
+
+    // Add system buttons (theme, reload, devtools, etc.)
+    buttons.push(...buildSystemButtons());
+    console.log('[DOCK_CONFIG] Step 13: Total buttons created:', buttons.length);
+
+    // Build dock configuration following workspace-starter patterns
+    currentConfig = {
+      id: config.id,
+      title: config.title,
+      icon: config.icon,
+      workspaceComponents: config.workspaceComponents || {
+        hideWorkspacesButton: false,
+        hideHomeButton: true,
+        hideNotificationsButton: true,
+        hideStorefrontButton: true
+      },
+      disableUserRearrangement: config.disableUserRearrangement ?? false,
+      buttons
+    };
+
+    console.log('[DOCK_CONFIG] Step 14: Final dock config prepared:', {
+      id: currentConfig.id,
+      title: currentConfig.title,
+      buttonsCount: currentConfig.buttons.length
+    });
+
+    // Register with OpenFin
+    console.log('[DOCK_CONFIG] Step 15: Calling Dock.register() with OpenFin API...');
+    registration = await Dock.register(currentConfig);
+    console.log('[DOCK_CONFIG] Step 16: Dock.register() completed successfully');
+
+    logger.info('Dock registered successfully', { buttonCount: buttons.length }, 'dock');
+    return registration;
+  } catch (error) {
+    logger.error('Failed to register dock', error, 'dock');
+    return undefined;
+  }
 }
 
-// Store the current dock configuration for quick reload
-let currentDockConfig: DockConfig | null = null;
-
 /**
- * Custom action event interface
+ * Register dock from a DockConfiguration object (from our config service)
+ *
+ * @param config - Full DockConfiguration from API
+ * @returns Registration info if successful
  */
-interface CustomActionEvent {
-  callerType: CustomActionCallerType;
-  customData?: DockMenuItem | string | { appId: string; title: string; manifestType?: string; url?: string; manifest?: string; icons?: Array<{ src: string }> };
-}
+export async function registerFromConfig(
+  config: DockConfiguration
+): Promise<DockProviderRegistration | undefined> {
+  console.log('[DOCK_CONFIG] Step 6: registerFromConfig called with:', {
+    configId: config.configId,
+    name: config.name,
+    icon: config.icon,
+    menuItemsCount: config.config.menuItems?.length
+  });
+  console.log('[DOCK_CONFIG] Step 7: Menu items before register:', JSON.stringify(config.config.menuItems, null, 2));
 
-/**
- * Dock custom actions for handling button clicks
- */
-export function dockGetCustomActions() {
-  return {
-    "launch-app": async (e: CustomActionEvent) => {
-      if (e.callerType === CustomActionCallerType.CustomDropdownItem) {
-        const app = e.customData as { appId: string; title: string; manifestType?: string; url?: string; manifest?: string };
-        try {
-          if (app.manifestType === "view" || app.url) {
-            // Launch as a view in a new window
-            const platform = getCurrentSync();
-            await platform.createWindow({
-              name: `${app.appId}-window-${Date.now()}`,
-              url: app.url || app.manifest,
-              defaultWidth: 1200,
-              defaultHeight: 800,
-              autoShow: true,
-              frame: true,
-              contextMenu: true
-            });
-          } else if (app.manifest) {
-            // Launch as a separate application from manifest
-            await fin.Application.startFromManifest(app.manifest);
-          } else {
-            logger.error('App configuration missing url or manifest', app, 'dock');
-          }
-        } catch (error) {
-          logger.error('Failed to launch app', error, 'dock');
-        }
-      }
+  const registerConfig = {
+    id: config.configId,
+    title: config.name,
+    icon: config.icon || buildUrl('/icons/dock.svg'),
+    menuItems: config.config.menuItems,
+    workspaceComponents: {
+      hideWorkspacesButton: false,
+      hideHomeButton: true,
+      hideNotificationsButton: true,
+      hideStorefrontButton: true
     },
+    disableUserRearrangement: false
+  };
 
-    "launch-component": async (e: CustomActionEvent) => {
-      if (e.callerType === CustomActionCallerType.CustomDropdownItem ||
-          e.callerType === CustomActionCallerType.CustomButton) {
-        const menuItem = e.customData as DockMenuItem;
+  console.log('[DOCK_CONFIG] Step 8: Calling register() with config:', registerConfig);
+  return register(registerConfig);
+}
+
+/**
+ * Show the dock after registration
+ *
+ * @returns Promise that resolves when dock is shown
+ */
+export async function show(): Promise<void> {
+  try {
+    await Dock.show();
+    logger.info('Dock shown', undefined, 'dock');
+  } catch (error) {
+    logger.error('Failed to show dock', error, 'dock');
+    throw error;
+  }
+}
+
+/**
+ * Deregister the dock
+ *
+ * @returns Promise that resolves when dock is deregistered
+ */
+export async function deregister(): Promise<void> {
+  try {
+    if (registration) {
+      await Dock.deregister();
+      registration = undefined;
+      currentConfig = undefined;
+      logger.info('Dock deregistered', undefined, 'dock');
+    }
+  } catch (error) {
+    logger.error('Failed to deregister dock', error, 'dock');
+    throw error;
+  }
+}
+
+/**
+ * Update dock configuration dynamically
+ *
+ * Uses updateDockProviderConfig() which is more efficient than deregister/register.
+ * This follows workspace-starter patterns for dynamic updates.
+ *
+ * @param config - New configuration to apply
+ * @returns Promise that resolves when update is complete
+ */
+export async function updateConfig(config: {
+  menuItems?: DockMenuItem[];
+  workspaceComponents?: WorkspaceButtonsConfig;
+}): Promise<void> {
+  try {
+    if (!registration || !currentConfig || !platformSettings) {
+      throw new Error('Dock not registered - call register() first');
+    }
+
+    logger.info('Updating dock configuration', undefined, 'dock');
+
+    // Build new buttons
+    const buttons: DockButton[] = [];
+
+    // Add Applications dropdown with all menu items
+    if (config.menuItems && config.menuItems.length > 0) {
+      buttons.push(buildApplicationsButton(config.menuItems));
+    }
+
+    // Add system buttons
+    buttons.push(...buildSystemButtons());
+
+    // Create new config
+    const newConfig: DockProviderConfig = {
+      ...currentConfig,
+      buttons,
+      workspaceComponents: config.workspaceComponents || currentConfig.workspaceComponents
+    };
+
+    // Update using OpenFin's updateDockProviderConfig (efficient, no deregister needed)
+    await registration.updateDockProviderConfig(newConfig);
+
+    // Store updated config
+    currentConfig = newConfig;
+
+    logger.info('Dock configuration updated', { buttonCount: buttons.length }, 'dock');
+  } catch (error) {
+    logger.error('Failed to update dock configuration', error, 'dock');
+    throw error;
+  }
+}
+
+/**
+ * Full dock reload (deregister and re-register)
+ *
+ * This follows the exact pattern from workspace-starter/register-with-dock-basic.
+ * Used when updateConfig() is not sufficient (e.g., changing fundamental settings).
+ *
+ * Pattern: deregister -> wait 500ms -> register -> show
+ *
+ * @returns Promise that resolves when reload is complete
+ */
+export async function reload(): Promise<void> {
+  try {
+    if (!currentConfig || !platformSettings) {
+      throw new Error('Dock not registered - cannot reload');
+    }
+
+    logger.info('Reloading dock (full deregister/register cycle)', undefined, 'dock');
+
+    // Store current config
+    const configToRestore = { ...currentConfig };
+
+    // Deregister
+    await Dock.deregister();
+    logger.debug('Dock deregistered', undefined, 'dock');
+
+    // CRITICAL: Wait for cleanup (from workspace-starter pattern)
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Re-register with same configuration
+    registration = await Dock.register(configToRestore);
+    logger.debug('Dock re-registered', undefined, 'dock');
+
+    // Show the dock
+    await Dock.show();
+    logger.info('Dock reload complete', undefined, 'dock');
+  } catch (error) {
+    logger.error('Failed to reload dock', error, 'dock');
+    throw error;
+  }
+}
+
+// ============================================================================
+// Custom Actions - MUST be registered before dock in platform init()
+// ============================================================================
+
+/**
+ * Get custom actions for dock buttons
+ *
+ * CRITICAL: These must be registered in platform init() BEFORE dock registration.
+ * This is the OpenFin pattern from workspace-starter.
+ *
+ * Usage in Provider.tsx:
+ * ```typescript
+ * await init({
+ *   customActions: dockGetCustomActions(),
+ *   // ... other config
+ * });
+ * ```
+ *
+ * @returns Map of custom action IDs to their handlers
+ */
+export function dockGetCustomActions(): CustomActionsMap {
+  return {
+    /**
+     * Launch a component/application from dock menu item
+     *
+     * This handles both direct buttons and dropdown menu items.
+     * The menuItem data is passed in customData.
+     */
+    'launch-component': async (payload: CustomActionPayload): Promise<void> => {
+      // Check caller type (button or dropdown item)
+      if (
+        payload.callerType === CustomActionCallerType.CustomButton ||
+        payload.callerType === CustomActionCallerType.CustomDropdownItem
+      ) {
+        const menuItem = payload.customData as DockMenuItem;
         try {
           await launchMenuItem(menuItem);
         } catch (error) {
@@ -94,318 +367,317 @@ export function dockGetCustomActions() {
       }
     },
 
-    "set-theme": async (e: CustomActionEvent) => {
-      if (e.callerType === CustomActionCallerType.CustomDropdownItem) {
-        const theme = e.customData as string;
+    /**
+     * Reload the dock
+     *
+     * Uses the full deregister/register cycle as per workspace-starter pattern.
+     */
+    'reload-dock': async (): Promise<void> => {
+      try {
+        logger.info('Reload dock action triggered', undefined, 'dock');
+        await reload();
+      } catch (error) {
+        logger.error('Failed to reload dock', error, 'dock');
+      }
+    },
+
+    /**
+     * Open developer tools for the dock window
+     *
+     * This implements the comprehensive search strategy from workspace-starter:
+     * 1. Search all applications for workspace-related UUIDs
+     * 2. Look for dock windows by name
+     * 3. Check all windows as fallback
+     * 4. Open current window devtools as last resort
+     */
+    'show-dock-devtools': async (): Promise<void> => {
+      try {
+        logger.info('Opening dock developer tools', undefined, 'dock');
+
+        // Strategy 1: Find workspace applications
+        const runningApps = await fin.System.getAllApplications();
+        logger.debug('Running applications', { apps: runningApps.map((a) => a.uuid) }, 'dock');
+
+        for (const app of runningApps) {
+          // Look for workspace-related applications
+          const appUuid = app.uuid.toLowerCase();
+          if (
+            appUuid.includes('openfin-workspace') ||
+            appUuid.includes('workspace') ||
+            appUuid === 'workspace-platform-starter'
+          ) {
+            try {
+              logger.debug(`Checking workspace app: ${app.uuid}`, undefined, 'dock');
+              const application = fin.Application.wrapSync({ uuid: app.uuid });
+              const childWindows = await application.getChildWindows();
+
+              // Look for dock windows
+              for (const window of childWindows) {
+                const windowName = window.identity.name?.toLowerCase() || '';
+                if (windowName.includes('dock') || windowName.includes('workspace-dock')) {
+                  await window.showDeveloperTools();
+                  logger.info(`DevTools opened for dock window: ${window.identity.name}`, undefined, 'dock');
+                  return;
+                }
+              }
+
+              // Try main window if no dock window found
+              const mainWindow = await application.getWindow();
+              await mainWindow.showDeveloperTools();
+              logger.info(`DevTools opened for workspace main window: ${app.uuid}`, undefined, 'dock');
+              return;
+            } catch (e) {
+              logger.debug(`Could not open devtools for ${app.uuid}`, e, 'dock');
+            }
+          }
+        }
+
+        // Strategy 2: Check all windows for dock-related names
+        logger.debug('Trying alternative approach - checking all windows', undefined, 'dock');
+        const allWindows = await fin.System.getAllWindows();
+
+        for (const appInfo of allWindows) {
+          // Check main window
+          const mainWindowName = appInfo.mainWindow?.name?.toLowerCase() || '';
+          if (mainWindowName.includes('dock')) {
+            try {
+              const window = fin.Window.wrapSync({
+                uuid: appInfo.uuid,
+                name: appInfo.mainWindow.name
+              });
+              await window.showDeveloperTools();
+              logger.info(`DevTools opened for main dock window: ${appInfo.mainWindow.name}`, undefined, 'dock');
+              return;
+            } catch (e) {
+              logger.debug(`Failed to open devtools for ${appInfo.mainWindow.name}`, e, 'dock');
+            }
+          }
+
+          // Check child windows
+          if (appInfo.childWindows) {
+            for (const child of appInfo.childWindows) {
+              const childName = child.name?.toLowerCase() || '';
+              if (childName.includes('dock')) {
+                try {
+                  const window = fin.Window.wrapSync({
+                    uuid: appInfo.uuid,
+                    name: child.name
+                  });
+                  await window.showDeveloperTools();
+                  logger.info(`DevTools opened for child dock window: ${child.name}`, undefined, 'dock');
+                  return;
+                } catch (e) {
+                  logger.debug(`Failed to open devtools for ${child.name}`, e, 'dock');
+                }
+              }
+            }
+          }
+        }
+
+        // Strategy 3: Final fallback - current window
+        logger.warn('Could not find dock window, opening devtools for current window', undefined, 'dock');
+        const currentWindow = fin.Window.getCurrentSync();
+        await currentWindow.showDeveloperTools();
+      } catch (error) {
+        logger.error('Error opening dock developer tools', error, 'dock');
+      }
+    },
+
+    /**
+     * Set theme (light or dark)
+     */
+    'set-theme': async (payload: CustomActionPayload): Promise<void> => {
+      if (payload.callerType === CustomActionCallerType.CustomDropdownItem) {
+        const theme = payload.customData as string;
         try {
+          logger.info(`Setting theme to: ${theme}`, undefined, 'dock');
           const platform = getCurrentSync();
           await platform.Theme.setSelectedScheme(theme);
+          logger.info('Theme changed successfully', undefined, 'dock');
         } catch (error) {
           logger.error('Failed to set theme', error, 'dock');
         }
       }
     },
 
-    "reload-dock": async (e: CustomActionEvent) => {
-      if (e.callerType === CustomActionCallerType.CustomDropdownItem) {
-        try {
-          logger.info('Quick reloading dock...', undefined, 'dock');
+    /**
+     * Toggle provider window visibility
+     */
+    'toggle-provider-window': async (): Promise<void> => {
+      try {
+        const providerWindow = fin.Window.getCurrentSync();
+        const isShowing = await providerWindow.isShowing();
 
-          // Check if we have a stored configuration
-          if (!currentDockConfig) {
-            logger.warn('No dock configuration stored, falling back to window reload', undefined, 'dock');
-            const providerWindow = fin.Window.getCurrentSync();
-            await providerWindow.reload();
-            return;
-          }
-
-          // Deregister current dock
-          await Dock.deregister();
-          logger.info('Dock deregistered', undefined, 'dock');
-
-          // Small delay to let cleanup happen
-          await new Promise(resolve => setTimeout(resolve, 100));
-
-          // Re-register with stored config
-          await registerDock(currentDockConfig);
-
-          // Show the dock
-          await showDock();
-          logger.info('Dock reloaded successfully', undefined, 'dock');
-        } catch (error) {
-          logger.error('Failed to reload dock', error, 'dock');
-          // Fallback to window reload on error
-          try {
-            const providerWindow = fin.Window.getCurrentSync();
-            await providerWindow.reload();
-          } catch (fallbackError) {
-            logger.error('Fallback reload also failed', fallbackError, 'dock');
-          }
+        if (isShowing) {
+          await providerWindow.hide();
+          logger.info('Provider window hidden', undefined, 'dock');
+        } else {
+          await providerWindow.show();
+          await providerWindow.bringToFront();
+          logger.info('Provider window shown', undefined, 'dock');
         }
-      }
-    },
-
-    "show-dock-dev-tools": async (e: CustomActionEvent) => {
-      if (e.callerType === CustomActionCallerType.CustomDropdownItem) {
-        try {
-          // Get the dock window and show dev tools
-          const dockWindows = await fin.System.getAllWindows();
-          const dockWindow = dockWindows.find((w: any) =>
-            w.name?.includes('dock') || w.uuid?.includes('dock')
-          );
-          if (dockWindow) {
-            const dockWin = fin.Window.wrapSync({ uuid: dockWindow.uuid, name: dockWindow.mainWindow.name });
-            await dockWin.showDeveloperTools();
-          } else {
-            logger.info('Dock window not found', undefined, 'dock');
-          }
-        } catch (error) {
-          logger.error('Failed to show dock dev tools', error, 'dock');
-        }
-      }
-    },
-
-    "toggle-provider-window": async (e: CustomActionEvent) => {
-      if (e.callerType === CustomActionCallerType.CustomDropdownItem) {
-        try {
-          // Toggle the provider window visibility
-          const providerWindow = fin.Window.getCurrentSync();
-          const isShowing = await providerWindow.isShowing();
-          if (isShowing) {
-            await providerWindow.hide();
-          } else {
-            await providerWindow.show();
-          }
-        } catch (error) {
-          logger.error('Failed to toggle provider window', error, 'dock');
-        }
+      } catch (error) {
+        logger.error('Failed to toggle provider window', error, 'dock');
       }
     }
   };
 }
 
-/**
- * Dropdown option interface
- */
-interface DropdownOption {
-  tooltip: string;
-  iconUrl: string;
-  action?: { id: string; customData: DockMenuItem | string };
-  options?: DropdownOption[];
-}
+// ============================================================================
+// Helper Functions
+// ============================================================================
 
 /**
- * Convert menu items to dock buttons
+ * Build the Applications dropdown button containing all menu items
+ *
+ * This creates a single "Applications" dropdown button that contains all
+ * configured menu items. This matches the original implementation where
+ * all apps are grouped under one button.
+ *
+ * Menu items with children become nested submenus (OpenFin supports this).
+ *
+ * @param items - Array of menu items to include
+ * @returns Applications dropdown button
  */
-function convertMenuItemsToButtons(items: DockMenuItem[]): DockButton[] {
-  return items.map(item => {
-    if (item.children && item.children.length > 0) {
-      // Create dropdown button for items with children
-      return {
-        type: "DropdownButton" as const,
-        id: item.id,
+function buildApplicationsButton(items: DockMenuItem[]): DockButton {
+  /**
+   * Recursively convert menu items to dropdown options
+   * This preserves the nested structure for items with children
+   */
+  function convertToDropdownOptions(menuItems: DockMenuItem[]): any[] {
+    return menuItems.map((item) => {
+      const option: any = {
         tooltip: item.caption,
-        iconUrl: item.icon ? buildUrl(item.icon) : buildUrl('/icons/default.svg'),
-        options: item.children.map(child => ({
-          tooltip: child.caption,
-          iconUrl: child.icon ? buildUrl(child.icon) : buildUrl('/icons/default.svg'),
-          action: {
-            id: 'launch-component',
-            customData: child
-          }
-        }))
+        iconUrl: item.icon ? buildUrl(item.icon) : buildUrl('/icons/default.svg')
       };
-    } else {
-      // Create regular button for items without children
-      return {
-        type: "CustomButton" as const,
-        id: item.id,
-        tooltip: item.caption,
-        iconUrl: item.icon ? buildUrl(item.icon) : buildUrl('/icons/default.svg'),
-        action: {
+
+      // If item has children, create nested options (submenu)
+      if (item.children && item.children.length > 0) {
+        logger.debug(
+          'Creating submenu',
+          { parent: item.caption, childCount: item.children.length },
+          'dock'
+        );
+        option.options = convertToDropdownOptions(item.children);
+      } else {
+        // Leaf item - add action to launch
+        option.action = {
           id: 'launch-component',
           customData: item
+        };
+      }
+
+      return option;
+    });
+  }
+
+  // Build the Applications dropdown button
+  return {
+    type: DockButtonNames.DropdownButton,
+    tooltip: 'Applications',
+    iconUrl: buildUrl('/icons/app.svg'),
+    options: convertToDropdownOptions(items),
+    contextMenu: {
+      removeOption: false // Don't allow removing the Applications button
+    }
+  } as DockButton;
+}
+
+/**
+ * Build system buttons (theme, tools, etc.)
+ *
+ * These are standard utility buttons that appear on every dock.
+ * Includes: Theme switcher, Tools dropdown (reload, devtools, provider toggle)
+ *
+ * @returns Array of system dock buttons
+ */
+function buildSystemButtons(): DockButton[] {
+  return [
+    // Theme dropdown
+    {
+      type: DockButtonNames.DropdownButton,
+      tooltip: 'Theme',
+      iconUrl: buildUrl('/icons/theme-switch.svg'),
+      options: [
+        {
+          tooltip: 'Light Theme',
+          iconUrl: buildUrl('/icons/theme-switch.svg'),
+          action: {
+            id: 'set-theme',
+            customData: 'light'
+          }
+        },
+        {
+          tooltip: 'Dark Theme',
+          iconUrl: buildUrl('/icons/theme-switch.svg'),
+          action: {
+            id: 'set-theme',
+            customData: 'dark'
+          }
         }
-      };
-    }
-  });
-}
-
-/**
- * Register and configure the dock with workspace
- */
-export async function registerDock(config: DockConfig): Promise<void> {
-  try {
-    // Store the configuration for quick reload
-    currentDockConfig = config;
-
-    // Build the Applications dropdown options
-    let applicationOptions: DropdownOption[] = [];
-
-    // Add configured menu items - preserve nested structure for OpenFin dock
-    if (config.menuItems && config.menuItems.length > 0) {
-      logger.debug('Processing menu items', { count: config.menuItems.length, items: config.menuItems }, 'dock');
-
-      const convertToDropdownOptions = (items: DockMenuItem[]): DropdownOption[] => {
-        return items.map(item => {
-          const option: DropdownOption = {
-            tooltip: item.caption,
-            iconUrl: item.icon ? buildUrl(item.icon) : buildUrl('/icons/default.svg')
-          };
-
-          // If item has children, add them as nested options
-          if (item.children && item.children.length > 0) {
-            logger.debug('Item has children - creating submenu', { parent: item.caption, childCount: item.children.length }, 'dock');
-            option.options = convertToDropdownOptions(item.children);
-          } else {
-            // Leaf item - add action to launch
-            logger.debug('Adding leaf item', { caption: item.caption, url: item.url }, 'dock');
-            option.action = {
-              id: 'launch-component',
-              customData: item
-            };
-          }
-
-          return option;
-        });
-      };
-
-      applicationOptions = convertToDropdownOptions(config.menuItems);
-      logger.info('Built application options with nested structure', { count: applicationOptions.length }, 'dock');
-    } else {
-      logger.warn('No menu items to process', undefined, 'dock');
-    }
-
-    // Add legacy apps if present
-    if (config.apps && config.apps.length > 0) {
-      const appOptions = config.apps.map((app) => ({
-        tooltip: app.title,
-        iconUrl: app.icons?.[0]?.src || config.icon,
-        action: { id: "launch-app", customData: app }
-      }));
-      applicationOptions = [...applicationOptions, ...appOptions];
-    }
-
-    // Always use the standard dock structure with Applications, Theme, and Tools
-    const buttons: DockButton[] = [
-      {
-        type: "DropdownButton" as const,
-        id: "apps-dropdown",
-        tooltip: "Applications",
-        iconUrl: buildUrl("/icons/app.svg"),
-        options: applicationOptions
-      },
-      {
-        type: "DropdownButton" as const,
-        id: "theme-dropdown",
-        tooltip: "Theme",
-        iconUrl: buildUrl("/icons/theme-switch.svg"),
-        options: [
-          {
-            tooltip: "Light Theme",
-            iconUrl: buildUrl("/icons/theme-switch.svg"),
-            action: { id: "set-theme", customData: "light" }
-          },
-          {
-            tooltip: "Dark Theme",
-            iconUrl: buildUrl("/icons/theme-switch.svg"),
-            action: { id: "set-theme", customData: "dark" }
-          }
-        ]
-      },
-      {
-        type: "DropdownButton" as const,
-        id: "tools-dropdown",
-        tooltip: "Tools",
-        iconUrl: buildUrl("/icons/tools.svg"),
-        options: [
-          {
-            tooltip: "Reload Dock",
-            iconUrl: buildUrl("/icons/reload.svg"),
-            action: { id: "reload-dock" }
-          },
-          {
-            tooltip: "Show Dock Developer Tools",
-            iconUrl: buildUrl("/icons/dev-tools.svg"),
-            action: { id: "show-dock-dev-tools" }
-          },
-          {
-            tooltip: "Toggle Provider Window",
-            iconUrl: buildUrl("/icons/provider-window.svg"),
-            action: { id: "toggle-provider-window" }
-          }
-        ]
+      ],
+      contextMenu: {
+        removeOption: true
       }
-    ];
+    } as DockButton,
 
-    // Register the dock with the configured buttons
-    try {
-      await Dock.register({
-        id: config.id + "-dock",
-        title: config.title,
-        icon: config.icon,
-        buttons: buttons
-      });
-    } catch (registerError: unknown) {
-      // If dock is already registered, deregister and re-register
-      if (registerError instanceof Error && registerError.message?.includes('already registered')) {
-        logger.info('Dock already registered, re-registering...', undefined, 'dock');
-        await Dock.deregister();
-        await Dock.register({
-          id: config.id + "-dock",
-          title: config.title,
-          icon: config.icon,
-          buttons: buttons
-        });
-      } else {
-        throw registerError;
+    // Tools dropdown
+    {
+      type: DockButtonNames.DropdownButton,
+      tooltip: 'Tools',
+      iconUrl: buildUrl('/icons/tools.svg'),
+      options: [
+        {
+          tooltip: 'Reload Dock',
+          iconUrl: buildUrl('/icons/reload.svg'),
+          action: {
+            id: 'reload-dock'
+          }
+        },
+        {
+          tooltip: 'Show Dock Developer Tools',
+          iconUrl: buildUrl('/icons/dev-tools.svg'),
+          action: {
+            id: 'show-dock-devtools'
+          }
+        },
+        {
+          tooltip: 'Toggle Provider Window',
+          iconUrl: buildUrl('/icons/provider-window.svg'),
+          action: {
+            id: 'toggle-provider-window'
+          }
+        }
+      ],
+      contextMenu: {
+        removeOption: true
       }
-    }
-
-    logger.info('Dock registered successfully', undefined, 'dock');
-  } catch (error) {
-    logger.error('Failed to register dock', error, 'dock');
-    throw error;
-  }
+    } as DockButton
+  ];
 }
 
-/**
- * Register dock from a DockConfiguration object
- */
-export async function registerDockFromConfig(config: DockConfiguration): Promise<void> {
-  const dockConfig: DockConfig = {
-    id: config.configId,
-    title: config.name,
-    icon: buildUrl('/icons/dock.svg'),
-    apps: [],
-    menuItems: config.config.menuItems
-  };
-
-  await registerDock(dockConfig);
-}
+// ============================================================================
+// Type Exports
+// ============================================================================
 
 /**
- * Show the dock after registration
+ * Re-export OpenFin types for convenience
  */
-export async function showDock(): Promise<void> {
-  try {
-    await Dock.show();
-    logger.info('Dock shown successfully', undefined, 'dock');
-  } catch (error) {
-    logger.error('Failed to show dock', error, 'dock');
-    throw error;
-  }
-}
+export type {
+  DockButton,
+  DockProviderRegistration,
+  DockProviderConfig,
+  WorkspaceButtonsConfig
+};
 
 /**
- * Deregister the dock (cleanup)
+ * Configuration for dock registration
  */
-export async function deregisterDock(): Promise<void> {
-  try {
-    await Dock.deregister();
-    logger.info('Dock deregistered successfully', undefined, 'dock');
-  } catch (error) {
-    logger.error('Failed to deregister dock', error, 'dock');
-    throw error;
-  }
+export interface DockConfig {
+  id: string;
+  title: string;
+  icon: string;
+  workspaceComponents?: WorkspaceButtonsConfig;
+  disableUserRearrangement?: boolean;
+  menuItems?: DockMenuItem[];
 }

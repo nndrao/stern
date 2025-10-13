@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { ConfigurationService } from '../services/ConfigurationService';
+import { ConfigurationFilter } from '../types/configuration';
 import logger from '../utils/logger';
 
 /**
@@ -222,16 +223,37 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
   /**
    * GET /api/v1/configurations/by-user/:userId
    * Get configurations by user ID
+   * Optional query params: componentType, componentSubType, includeDeleted
    */
   router.get('/by-user/:userId',
     asyncHandler(async (req: Request, res: Response) => {
       const { userId } = req.params;
-      const { includeDeleted } = req.query;
-      
-      logger.debug('Fetching configurations by user ID', { userId, includeDeleted });
+      const { includeDeleted, componentType, componentSubType } = req.query;
 
-      const result = await configService.findByUserId(userId, includeDeleted === 'true');
-      res.json(result);
+      logger.debug('Fetching configurations by user ID', { userId, componentType, componentSubType, includeDeleted });
+
+      // If componentType or componentSubType filters are provided, use findByMultipleCriteria
+      if (componentType || componentSubType) {
+        const criteria: ConfigurationFilter = {
+          userIds: [userId],
+          includeDeleted: includeDeleted === 'true'
+        };
+
+        if (componentType) {
+          criteria.componentTypes = [componentType as string];
+        }
+
+        if (componentSubType) {
+          criteria.componentSubTypes = [componentSubType as string];
+        }
+
+        const result = await configService.queryConfigurations(criteria);
+        res.json(result);
+      } else {
+        // No filters, return all configs for user
+        const result = await configService.findByUserId(userId, includeDeleted === 'true');
+        res.json(result);
+      }
     })
   );
 

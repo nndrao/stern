@@ -174,8 +174,15 @@ export const useDockConfigStore = create<DockConfigStore>()(
           }, 'dockConfigStore');
           logger.debug('Config menu items', config.config?.menuItems, 'dockConfigStore');
 
+          // Ensure menuItems array exists
+          const loadedConfig = configs[0];
+          if (!loadedConfig.config.menuItems) {
+            loadedConfig.config.menuItems = [];
+            logger.warn('menuItems was undefined, initialized to empty array', undefined, 'dockConfigStore');
+          }
+
           set({
-            currentConfig: configs[0],
+            currentConfig: loadedConfig,
             isDirty: false,
             isLoading: false
           });
@@ -314,7 +321,7 @@ export const useDockConfigStore = create<DockConfigStore>()(
       if (!state.currentConfig) return;
 
       const newItem = item || createMenuItem();
-      let newMenuItems = [...state.currentConfig.config.menuItems];
+      let newMenuItems = [...(state.currentConfig.config.menuItems || [])];
 
       logger.debug('Adding menu item', {
         currentItemsCount: newMenuItems.length,
@@ -360,7 +367,7 @@ export const useDockConfigStore = create<DockConfigStore>()(
       const state = get();
       if (!state.currentConfig) return;
 
-      const newMenuItems = updateMenuItemRecursive(state.currentConfig.config.menuItems, id, updates);
+      const newMenuItems = updateMenuItemRecursive(state.currentConfig.config.menuItems || [], id, updates);
 
       // Save to history
       const newHistory = {
@@ -394,7 +401,7 @@ export const useDockConfigStore = create<DockConfigStore>()(
       const state = get();
       if (!state.currentConfig) return;
 
-      const newMenuItems = deleteMenuItemRecursive(state.currentConfig.config.menuItems, id);
+      const newMenuItems = deleteMenuItemRecursive(state.currentConfig.config.menuItems || [], id);
 
       // Save to history
       const newHistory = {
@@ -426,7 +433,7 @@ export const useDockConfigStore = create<DockConfigStore>()(
       const state = get();
       if (!state.currentConfig) return;
 
-      let newMenuItems = [...state.currentConfig.config.menuItems];
+      let newMenuItems = [...(state.currentConfig.config.menuItems || [])];
 
       // Find and remove source item
       const sourceItem = findMenuItem(newMenuItems, sourceId);
@@ -440,7 +447,7 @@ export const useDockConfigStore = create<DockConfigStore>()(
           addChildToItem(item, targetId, sourceItem)
         );
       } else {
-        const targetParent = findParentMenuItem(state.currentConfig.config.menuItems, targetId);
+        const targetParent = findParentMenuItem(state.currentConfig.config.menuItems || [], targetId);
         if (targetParent) {
           newMenuItems = newMenuItems.map(item =>
             insertItemRelativeToTarget(item, targetId, sourceItem, position, targetParent.id)

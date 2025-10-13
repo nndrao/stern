@@ -126,21 +126,27 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
       // Reload the dock to show the updated configuration
       if (window.fin) {
         try {
-          logger.info('Reloading dock with updated configuration...', undefined, 'DockConfigEditor');
-          const { Dock } = await import('@openfin/workspace');
-          const { registerDockFromConfig, showDock } = await import('@/platform/dock');
+          logger.info('Updating dock with new configuration...', undefined, 'DockConfigEditor');
+          const dock = await import('@/platform/dock');
 
-          // Deregister current dock
-          await Dock.deregister();
-
-          // Re-register with updated config
           if (store.currentConfig) {
-            await registerDockFromConfig(store.currentConfig);
-            await showDock();
-            logger.info('Dock reloaded successfully', undefined, 'DockConfigEditor');
+            // Use updateConfig for efficient update (no deregister/register cycle)
+            await dock.updateConfig({
+              menuItems: store.currentConfig.config.menuItems
+            });
+            logger.info('Dock updated successfully', undefined, 'DockConfigEditor');
           }
         } catch (dockError) {
-          logger.warn('Failed to reload dock, may require manual reload', dockError, 'DockConfigEditor');
+          logger.error('Failed to update dock', dockError, 'DockConfigEditor');
+          // If update fails, try full reload as fallback
+          try {
+            logger.info('Attempting full dock reload as fallback...', undefined, 'DockConfigEditor');
+            const dock = await import('@/platform/dock');
+            await dock.reload();
+            logger.info('Dock reloaded successfully', undefined, 'DockConfigEditor');
+          } catch (reloadError) {
+            logger.error('Failed to reload dock', reloadError, 'DockConfigEditor');
+          }
         }
       }
 

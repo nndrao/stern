@@ -4,8 +4,8 @@
  */
 
 import { apiClient, apiCall } from '@/utils/apiClient';
-import { DockConfiguration, DockConfigFilter, DockMenuItem } from '@/types/dockConfig';
-import { COMPONENT_TYPES } from '@stern/shared-types';
+import { DockConfiguration, DockConfigFilter, DockMenuItem, DockApplicationsMenuItemsConfig } from '@/types/dockConfig';
+import { COMPONENT_TYPES, COMPONENT_SUBTYPES } from '@stern/shared-types';
 
 /**
  * Helper function to clean menu items - set defaults for missing fields
@@ -46,7 +46,31 @@ export const dockConfigService = {
   },
 
   /**
+   * Load the singleton DockApplicationsMenuItems configuration
+   * This is the NEW way - dock menu items are stored separately from data providers
+   */
+  async loadApplicationsMenuItems(userId: string): Promise<DockApplicationsMenuItemsConfig | null> {
+    try {
+      const configs = await apiCall<DockApplicationsMenuItemsConfig[]>(
+        () => apiClient.get('/configurations/by-user/' + userId, {
+          params: {
+            componentType: COMPONENT_TYPES.DOCK,
+            componentSubType: COMPONENT_SUBTYPES.DOCK_APPLICATIONS_MENU_ITEMS,
+            includeDeleted: false
+          }
+        }),
+        'Failed to load dock applications menu items'
+      );
+      return configs.length > 0 ? configs[0] : null;
+    } catch (error) {
+      console.error('Error loading dock applications menu items:', error);
+      return null;
+    }
+  },
+
+  /**
    * Load dock configurations for a user
+   * @deprecated Use loadApplicationsMenuItems() instead for menu items
    */
   async loadByUser(userId: string): Promise<DockConfiguration[]> {
     return apiCall<DockConfiguration[]>(

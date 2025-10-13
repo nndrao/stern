@@ -48,6 +48,7 @@
     "@radix-ui/react-tooltip": "^1.1.2",
     "@rollup/rollup-win32-x64-msvc": "^4.52.0",
     "@stern/shared-types": "file:../shared",
+    "@stomp/stompjs": "^7.2.0",
     "@types/openfin": "^51.0.6",
     "ag-grid-community": "^34.2.0",
     "ag-grid-enterprise": "^34.2.0",
@@ -72,6 +73,7 @@
     "sonner": "^1.5.0",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
+    "uuid": "^13.0.0",
     "vaul": "^1.0.0",
     "zod": "^3.23.8",
     "zustand": "^5.0.8"

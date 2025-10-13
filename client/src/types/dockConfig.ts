@@ -52,7 +52,27 @@ export interface DockMenuItem {
 }
 
 /**
+ * Dock Applications Menu Items Configuration (Singleton)
+ * This is the ONLY configuration that should contain dock menu items
+ * componentType: 'Dock'
+ * componentSubType: 'DockApplicationsMenuItems'
+ */
+export interface DockApplicationsMenuItemsConfig extends Omit<UnifiedConfig, 'componentType' | 'componentSubType' | 'config'> {
+  componentType: 'Dock';
+  componentSubType: 'DockApplicationsMenuItems';
+
+  config: {
+    menuItems: DockMenuItem[];
+  };
+
+  // Version history for dock layouts
+  settings: ConfigVersion[];
+  activeSetting: string;
+}
+
+/**
  * Complete dock configuration extending UnifiedConfig
+ * @deprecated Use DockApplicationsMenuItemsConfig instead for menu items
  */
 export interface DockConfiguration extends Omit<UnifiedConfig, 'componentType' | 'config'> {
   componentType: 'dock';

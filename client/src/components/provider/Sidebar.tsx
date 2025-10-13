@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { useTheme } from 'next-themes';
 import {
   LayoutDashboard,
+  Database,
   Settings,
   HelpCircle,
   ChevronLeft,
@@ -40,6 +41,12 @@ const navItems: NavItem[] = [
     label: 'Dock',
     icon: <LayoutDashboard className="h-5 w-5" />,
     tooltip: 'Configure dock menu items'
+  },
+  {
+    id: 'providers',
+    label: 'Data Providers',
+    icon: <Database className="h-5 w-5" />,
+    tooltip: 'Configure data providers'
   },
   {
     id: 'settings',

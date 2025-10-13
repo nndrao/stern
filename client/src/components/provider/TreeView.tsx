@@ -246,7 +246,7 @@ export const TreeView: React.FC<TreeViewProps> = ({
   return (
     <ScrollArea className="h-full">
       <div className="p-2">
-        {items.length === 0 ? (
+        {!items || items.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">
             <p>No menu items</p>
             <p className="text-sm mt-2">Click "Add Item" to create your first menu item</p>
