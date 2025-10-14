@@ -21,6 +21,7 @@ import { Info } from 'lucide-react';
 import { useDataProviderStore } from '@/stores/dataProviderStore';
 import {
   ProviderType,
+  PROVIDER_TYPES,
   StompProviderConfig,
   RestProviderConfig,
   WebSocketProviderConfig,
@@ -81,7 +82,7 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, onSave, onCa
     <div className="flex flex-col h-full">
       {/* Main content area - STOMP goes straight to tabs */}
       <div className="flex-1 overflow-hidden">
-        {currentProvider.providerType === 'stomp' ? (
+        {currentProvider.providerType === PROVIDER_TYPES.STOMP ? (
           /* Enhanced STOMP Configuration with full 3-tab interface */
           <StompConfigurationForm
             name={currentProvider.name}
@@ -152,28 +153,28 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, onSave, onCa
                         </TabsList>
 
                         <TabsContent value="connection" className="space-y-4 mt-4">
-                          {currentProvider.providerType === 'rest' && (
+                          {currentProvider.providerType === PROVIDER_TYPES.REST && (
                             <RestConfigForm
                               config={currentProvider.config as RestProviderConfig}
                               onChange={handleConfigChange}
                             />
                           )}
 
-                          {currentProvider.providerType === 'websocket' && (
+                          {currentProvider.providerType === PROVIDER_TYPES.WEBSOCKET && (
                             <WebSocketConfigForm
                               config={currentProvider.config as WebSocketProviderConfig}
                               onChange={handleConfigChange}
                             />
                           )}
 
-                          {currentProvider.providerType === 'socketio' && (
+                          {currentProvider.providerType === PROVIDER_TYPES.SOCKETIO && (
                             <SocketIOConfigForm
                               config={currentProvider.config as SocketIOProviderConfig}
                               onChange={handleConfigChange}
                             />
                           )}
 
-                          {currentProvider.providerType === 'mock' && (
+                          {currentProvider.providerType === PROVIDER_TYPES.MOCK && (
                             <MockConfigForm
                               config={currentProvider.config as MockProviderConfig}
                               onChange={handleConfigChange}
@@ -182,28 +183,28 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, onSave, onCa
                         </TabsContent>
 
                         <TabsContent value="advanced" className="space-y-4 mt-4">
-                          {currentProvider.providerType === 'stomp' && (
+                          {currentProvider.providerType === PROVIDER_TYPES.STOMP && (
                             <StompAdvancedForm
                               config={currentProvider.config as StompProviderConfig}
                               onChange={handleConfigChange}
                             />
                           )}
 
-                          {currentProvider.providerType === 'rest' && (
+                          {currentProvider.providerType === PROVIDER_TYPES.REST && (
                             <RestAdvancedForm
                               config={currentProvider.config as RestProviderConfig}
                               onChange={handleConfigChange}
                             />
                           )}
 
-                          {currentProvider.providerType === 'websocket' && (
+                          {currentProvider.providerType === PROVIDER_TYPES.WEBSOCKET && (
                             <WebSocketAdvancedForm
                               config={currentProvider.config as WebSocketProviderConfig}
                               onChange={handleConfigChange}
                             />
                           )}
 
-                          {currentProvider.providerType === 'socketio' && (
+                          {currentProvider.providerType === PROVIDER_TYPES.SOCKETIO && (
                             <SocketIOAdvancedForm
                               config={currentProvider.config as SocketIOProviderConfig}
                               onChange={handleConfigChange}

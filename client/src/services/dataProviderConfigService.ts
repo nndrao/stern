@@ -11,7 +11,9 @@ import {
   COMPONENT_TYPES,
   DataProviderConfig,
   ProviderType,
-  ProviderConfig
+  ProviderConfig,
+  PROVIDER_TYPE_TO_COMPONENT_SUBTYPE,
+  COMPONENT_SUBTYPE_TO_PROVIDER_TYPE
 } from '@stern/shared-types';
 import { logger } from '@/utils/logger';
 
@@ -24,21 +26,19 @@ export class DataProviderConfigService {
    * componentSubType is the specific provider type (Stomp, Rest, etc.)
    */
   private toUnifiedConfig(provider: DataProviderConfig, userId: string): Partial<UnifiedConfig> {
-    // Map provider type to proper component subtype
-    const subTypeMap: Record<string, string> = {
-      'stomp': 'Stomp',
-      'rest': 'Rest',
-      'websocket': 'WebSocket',
-      'socketio': 'SocketIO',
-      'mock': 'Mock'
-    };
+    // Use enum mapping to convert provider type to component subtype
+    const componentSubType = PROVIDER_TYPE_TO_COMPONENT_SUBTYPE[provider.providerType];
+
+    if (!componentSubType) {
+      throw new Error(`Unknown provider type: ${provider.providerType}`);
+    }
 
     return {
       configId: provider.providerId,
       appId: 'stern-platform',
       userId: userId,
-      componentType: COMPONENT_TYPES.DATA_PROVIDER,  // Changed from DATASOURCE
-      componentSubType: subTypeMap[provider.providerType] || provider.providerType,
+      componentType: COMPONENT_TYPES.DATA_PROVIDER,
+      componentSubType: componentSubType,
       name: provider.name,
       description: provider.description,
       config: provider.config as Record<string, unknown>,
@@ -53,13 +53,21 @@ export class DataProviderConfigService {
 
   /**
    * Convert UnifiedConfig to DataProviderConfig format
+   * Uses enum mapping to convert componentSubType to providerType
    */
   private fromUnifiedConfig(config: UnifiedConfig): DataProviderConfig {
+    // Use enum mapping to convert component subtype to provider type
+    const providerType = COMPONENT_SUBTYPE_TO_PROVIDER_TYPE[config.componentSubType || ''];
+
+    if (!providerType) {
+      throw new Error(`Unknown component subtype: ${config.componentSubType}`);
+    }
+
     return {
       providerId: config.configId,
       name: config.name,
       description: config.description,
-      providerType: config.componentSubType as ProviderType,
+      providerType: providerType,
       config: config.config as ProviderConfig,
       tags: config.tags,
       isDefault: config.isDefault,

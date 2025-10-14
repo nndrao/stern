@@ -2,7 +2,7 @@
 // These configs are stored as UnifiedConfig with componentType='datasource'
 
 /**
- * Provider type enumeration
+ * Provider type enumeration (lowercase - used in frontend)
  */
 export const PROVIDER_TYPES = {
   STOMP: 'stomp',
@@ -13,6 +13,36 @@ export const PROVIDER_TYPES = {
 } as const;
 
 export type ProviderType = typeof PROVIDER_TYPES[keyof typeof PROVIDER_TYPES];
+
+/**
+ * Provider type to ComponentSubType mapping
+ * Maps lowercase frontend provider types to capitalized backend componentSubTypes
+ */
+export const PROVIDER_TYPE_TO_COMPONENT_SUBTYPE: Record<ProviderType, string> = {
+  [PROVIDER_TYPES.STOMP]: 'Stomp',
+  [PROVIDER_TYPES.REST]: 'Rest',
+  [PROVIDER_TYPES.WEBSOCKET]: 'WebSocket',
+  [PROVIDER_TYPES.SOCKETIO]: 'SocketIO',
+  [PROVIDER_TYPES.MOCK]: 'Mock'
+};
+
+/**
+ * ComponentSubType to Provider type mapping
+ * Maps capitalized backend componentSubTypes to lowercase frontend provider types
+ */
+export const COMPONENT_SUBTYPE_TO_PROVIDER_TYPE: Record<string, ProviderType> = {
+  'Stomp': PROVIDER_TYPES.STOMP,
+  'Rest': PROVIDER_TYPES.REST,
+  'WebSocket': PROVIDER_TYPES.WEBSOCKET,
+  'SocketIO': PROVIDER_TYPES.SOCKETIO,
+  'Mock': PROVIDER_TYPES.MOCK,
+  // Lowercase fallbacks for backward compatibility
+  'stomp': PROVIDER_TYPES.STOMP,
+  'rest': PROVIDER_TYPES.REST,
+  'websocket': PROVIDER_TYPES.WEBSOCKET,
+  'socketio': PROVIDER_TYPES.SOCKETIO,
+  'mock': PROVIDER_TYPES.MOCK
+};
 
 /**
  * Connection state enumeration
