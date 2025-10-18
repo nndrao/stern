@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { init } from '@openfin/workspace-platform';
-import { OpenFinWorkspaceProvider } from '@/services/openfin/OpenFinWorkspaceProvider';
+import { OpenFinWorkspaceProvider } from '../services/OpenfinWorkspaceProvider';
 import { Sidebar } from '@/components/provider/Sidebar';
 import { DockConfigEditor } from '@/components/provider/DockConfigEditor';
 import { DataProviderEditor } from '@/components/provider/DataProviderEditor';
 import { Toaster } from '@/components/ui/toaster';
-import * as dock from './dock';
-import { initializeBaseUrlFromManifest, buildUrl } from '../openfin-utils';
+import * as dock from './openfinDock';
+import { initializeBaseUrlFromManifest, buildUrl } from '../utils/openfinUtils';
 import { logger } from '@/utils/logger';
 import { dockConfigService } from '@/services/dockConfigService';
 

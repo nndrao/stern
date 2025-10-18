@@ -4,7 +4,7 @@
  */
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import { buildUrl } from '../openfin-utils';
+import { buildUrl } from '../openfin/utils/openfinUtils';
 import { logger } from '@/utils/logger';
 
 // API base URL - defaults to same origin, port 3001

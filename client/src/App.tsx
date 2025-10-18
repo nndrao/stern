@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { isOpenFin, createWindow } from "@/utils/openfin";
+import { isOpenFin, createWindow } from "@/openfin/utils/openfinUtils";
 import { logger } from "@/utils/logger";
 
 function App() {

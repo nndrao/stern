@@ -2,7 +2,7 @@
  * OpenFin Cache Management Utilities
  */
 
-import { logger } from './logger';
+import { logger } from '@/utils/logger';
 
 /**
  * Clear OpenFin application cache

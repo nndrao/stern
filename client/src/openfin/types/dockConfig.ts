@@ -3,7 +3,7 @@
  * Defines the structure for runtime dock configuration
  */
 
-import { UnifiedConfig, ConfigVersion } from '../../../server/src/types/configuration';
+import { UnifiedConfig, ConfigVersion } from '@stern/shared-types';
 
 /**
  * Represents a single menu item in the dock

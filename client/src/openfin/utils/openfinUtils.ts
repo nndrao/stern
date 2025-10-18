@@ -3,6 +3,9 @@
  * Direct API usage without complex abstractions
  */
 
+// Re-export URL utilities
+export * from './urlHelper';
+
 export const createWindow = (url: string, options: any = {}) =>
   fin.Window.create({
     url,

@@ -10,7 +10,7 @@ import {
   DockConfiguration,
   createMenuItem,
   createDockConfiguration,
-} from '@/types/dockConfig';
+} from '@/openfin/types/dockConfig';
 import { dockConfigService } from '@/services/dockConfigService';
 import { logger } from '@/utils/logger';
 

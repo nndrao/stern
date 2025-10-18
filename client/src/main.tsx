@@ -4,10 +4,10 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import App from './App.tsx';
 import { ThemeProvider } from './components/theme-provider';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { OpenFinWorkspaceProvider } from './services/openfin/OpenFinWorkspaceProvider';
+import { OpenFinWorkspaceProvider } from './openfin/services/OpenfinWorkspaceProvider';
 import './index.css';
 
-const PlatformProvider = lazy(() => import('./platform/Provider'));
+const PlatformProvider = lazy(() => import('./openfin/platform/OpenfinProvider'));
 
 // Loading fallback component
 const LoadingFallback = () => (

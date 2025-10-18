@@ -12,8 +12,8 @@
 
 import React, { useEffect, useState, useCallback, createContext, useContext } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useOpenFinWorkspace } from '@/services/openfin/OpenFinWorkspaceProvider';
-import { iabService } from '@/services/openfin/IABService';
+import { useOpenFinWorkspace } from '../services/OpenfinWorkspaceProvider';
+import { iabService } from '../services/OpenfinIABService';
 import { configService } from '@/services/configurationService';
 import { logger } from '@/utils/logger';
 import { UnifiedConfig } from '@stern/shared-types';

@@ -4,7 +4,7 @@
  */
 
 import { apiClient, apiCall } from '@/utils/apiClient';
-import { DockConfiguration, DockConfigFilter, DockMenuItem, DockApplicationsMenuItemsConfig } from '@/types/dockConfig';
+import { DockConfiguration, DockConfigFilter, DockMenuItem, DockApplicationsMenuItemsConfig } from '@/openfin/types/dockConfig';
 import { COMPONENT_TYPES, COMPONENT_SUBTYPES } from '@stern/shared-types';
 
 /**

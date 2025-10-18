@@ -3,13 +3,13 @@
  * Provides easy access to OpenFin workspace functionality
  */
 
-import { useOpenFinWorkspace as useOpenFinWorkspaceFromProvider } from '../services/openfin/OpenFinWorkspaceProvider';
+import { useOpenFinWorkspace as useOpenFinWorkspaceFromProvider } from '../services/OpenfinWorkspaceProvider';
 
 // Re-export the hook from the provider for convenience
-export { useOpenFinWorkspace } from '../services/openfin/OpenFinWorkspaceProvider';
+export { useOpenFinWorkspace } from '../services/OpenfinWorkspaceProvider';
 
 // Export the service interface for type usage
-export type { OpenFinWorkspaceServices } from '../services/openfin/OpenFinWorkspaceProvider';
+export type { OpenFinWorkspaceServices } from '../services/OpenfinWorkspaceProvider';
 
 /**
  * Hook to check if running in OpenFin

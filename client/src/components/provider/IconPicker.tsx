@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { buildUrl } from '@/openfin-utils';
+import { buildUrl } from '@/openfin/utils';
 import {
   Search,
   Grid3x3,

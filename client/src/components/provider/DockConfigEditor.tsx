@@ -27,9 +27,9 @@ import {
 import { TreeView } from './TreeView';
 import { PropertiesPanel } from './PropertiesPanel';
 import { IconPicker } from './IconPicker';
-import { DockConfiguration, createMenuItem, validateDockConfiguration } from '@/types/dockConfig';
+import { DockConfiguration, createMenuItem, validateDockConfiguration } from '@/openfin/types/dockConfig';
 import { useDockConfigStore } from '@/stores/dockConfigStore';
-import { useOpenFinDock } from '@/hooks/useOpenFinWorkspace';
+import { useOpenFinDock } from '@/openfin/hooks/useOpenfinWorkspace';
 import '@/utils/testApi'; // Import test utility for debugging
 import { logger } from '@/utils/logger';
 
@@ -127,7 +127,7 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
       if (window.fin) {
         try {
           logger.info('Updating dock with new configuration...', undefined, 'DockConfigEditor');
-          const dock = await import('@/platform/dock');
+          const dock = await import('@/openfin/platform/openfinDock');
 
           if (store.currentConfig) {
             // Use updateConfig for efficient update (no deregister/register cycle)
@@ -141,7 +141,7 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
           // If update fails, try full reload as fallback
           try {
             logger.info('Attempting full dock reload as fallback...', undefined, 'DockConfigEditor');
-            const dock = await import('@/platform/dock');
+            const dock = await import('@/openfin/platform/openfinDock');
             await dock.reload();
             logger.info('Dock reloaded successfully', undefined, 'DockConfigEditor');
           } catch (reloadError) {

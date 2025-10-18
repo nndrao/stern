@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { clearCacheAndReload } from '@/utils/openfinCache';
+import { clearCacheAndReload } from '@/openfin/utils/openfinCache';
 
 interface ClearCacheButtonProps {
   variant?: 'default' | 'outline' | 'ghost' | 'destructive';
