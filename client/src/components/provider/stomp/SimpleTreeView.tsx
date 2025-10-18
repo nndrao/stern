@@ -28,6 +28,8 @@ interface TreeNodeProps {
   onSelect: (id: string) => void;
   onExpand: (id: string) => void;
   typeColorMap: Record<string, { badge: string; text: string }>;
+  selected: Set<string>;
+  expanded: Set<string>;
 }
 
 function TreeNodeComponent({
@@ -37,10 +39,50 @@ function TreeNodeComponent({
   isExpanded,
   onSelect,
   onExpand,
-  typeColorMap
+  typeColorMap,
+  selected,
+  expanded
 }: TreeNodeProps) {
   const hasChildren = node.children && node.children.length > 0;
   const typeColors = node.type ? (typeColorMap[node.type] || typeColorMap.string) : typeColorMap.string;
+
+  // Calculate selection state for a node
+  const getSelectionState = (n: TreeNode): boolean | 'indeterminate' => {
+    if (n.isLeaf) {
+      return selected.has(n.id);
+    }
+
+    if (!n.children || n.children.length === 0) {
+      return false;
+    }
+
+    // Count selected leaf descendants
+    const countSelectedLeaves = (node: TreeNode): { selected: number; total: number } => {
+      if (node.isLeaf) {
+        return { selected: selected.has(node.id) ? 1 : 0, total: 1 };
+      }
+
+      if (!node.children) {
+        return { selected: 0, total: 0 };
+      }
+
+      return node.children.reduce(
+        (acc, child) => {
+          const childCounts = countSelectedLeaves(child);
+          return {
+            selected: acc.selected + childCounts.selected,
+            total: acc.total + childCounts.total
+          };
+        },
+        { selected: 0, total: 0 }
+      );
+    };
+
+    const counts = countSelectedLeaves(n);
+    if (counts.selected === 0) return false;
+    if (counts.selected === counts.total) return true;
+    return 'indeterminate';
+  };
 
   return (
     <div className="relative">
@@ -92,11 +134,13 @@ function TreeNodeComponent({
                 key={child.id}
                 node={child}
                 level={level + 1}
-                isSelected={isSelected}
-                isExpanded={isExpanded}
+                isSelected={getSelectionState(child)}
+                isExpanded={expanded.has(child.id)}
                 onSelect={onSelect}
                 onExpand={onExpand}
                 typeColorMap={typeColorMap}
+                selected={selected}
+                expanded={expanded}
               />
             ))}
           </CollapsibleContent>
@@ -218,6 +262,8 @@ export function SimpleTreeView({
           onSelect={onSelect}
           onExpand={onExpand}
           typeColorMap={typeColorMap}
+          selected={selected}
+          expanded={expanded}
         />
       ))}
     </div>
