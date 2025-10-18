@@ -1,18 +1,48 @@
 /**
- * Fields Tab Component
- * Interface for selecting fields from inferred schema
+ * Fields Tab Component - react-checkbox-tree Edition
+ * Interface for selecting fields from inferred schema using a tree component
  */
 
-import React from 'react';
+import { useMemo, ReactNode } from 'react';
+import CheckboxTree from 'react-checkbox-tree';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Search, Database, Loader2, Info } from 'lucide-react';
-import { FieldNode, filterFields, collectNonObjectLeaves } from './FieldSelector';
-import { TreeItem } from './TreeItem';
+import { Search, Database, Loader2, Info, ChevronRight, ChevronDown } from 'lucide-react';
+import { FieldNode, convertFieldsToCheckboxTree, CheckboxTreeNode } from './FieldSelector';
+import { cn } from '@/lib/utils';
+import '@/styles/checkbox-tree-dark.css';
+
+// Type badge color mapping
+const typeColorMap: Record<string, { badge: string; text: string }> = {
+  string: {
+    badge: 'bg-green-900/20 text-green-400 border-green-800/30',
+    text: 'text-green-400',
+  },
+  number: {
+    badge: 'bg-blue-900/20 text-blue-400 border-blue-800/30',
+    text: 'text-blue-400',
+  },
+  boolean: {
+    badge: 'bg-yellow-900/20 text-yellow-400 border-yellow-800/30',
+    text: 'text-yellow-400',
+  },
+  date: {
+    badge: 'bg-purple-900/20 text-purple-400 border-purple-800/30',
+    text: 'text-purple-400',
+  },
+  object: {
+    badge: 'bg-orange-900/20 text-orange-400 border-orange-800/30',
+    text: 'text-orange-400',
+  },
+  array: {
+    badge: 'bg-pink-900/20 text-pink-400 border-pink-800/30',
+    text: 'text-pink-400',
+  },
+};
 
 interface FieldsTabProps {
   name: string;
@@ -53,40 +83,114 @@ export function FieldsTab({
   inferring = false,
   isEditMode = false
 }: FieldsTabProps) {
-  const filteredFields = filterFields(inferredFields, fieldSearchQuery);
+  // Convert FieldNode tree to CheckboxTree format
+  const treeNodes = useMemo(() => {
+    return convertFieldsToCheckboxTree(inferredFields);
+  }, [inferredFields]);
 
-  const renderFieldItem = (field: FieldNode, level: number = 0): React.ReactNode => {
-    const isExpanded = expandedFields.has(field.path);
-    const isObjectField = field.type === 'object';
+  // Filter tree based on search query
+  const filteredNodes = useMemo(() => {
+    if (!fieldSearchQuery) return treeNodes;
 
-    // For object fields, determine checkbox state based on children
-    let checkboxState: boolean | 'indeterminate' = selectedFields.has(field.path);
+    const filterNodes = (nodes: CheckboxTreeNode[]): CheckboxTreeNode[] => {
+      return nodes.reduce((acc: CheckboxTreeNode[], node) => {
+        const matchesSearch = node.label.toLowerCase().includes(fieldSearchQuery.toLowerCase()) ||
+                             node.value.toLowerCase().includes(fieldSearchQuery.toLowerCase());
 
-    if (isObjectField) {
-      const leafPaths = collectNonObjectLeaves(field);
-      const selectedCount = leafPaths.filter(path => selectedFields.has(path)).length;
+        if (node.children) {
+          const filteredChildren = filterNodes(node.children);
+          if (matchesSearch || filteredChildren.length > 0) {
+            acc.push({
+              ...node,
+              children: filteredChildren.length > 0 ? filteredChildren : node.children
+            });
+          }
+        } else if (matchesSearch) {
+          acc.push(node);
+        }
 
-      if (selectedCount === 0) {
-        checkboxState = false;
-      } else if (selectedCount === leafPaths.length) {
-        checkboxState = true;
-      } else {
-        checkboxState = 'indeterminate';
-      }
-    }
+        return acc;
+      }, []);
+    };
+
+    return filterNodes(treeNodes);
+  }, [treeNodes, fieldSearchQuery]);
+
+  // Convert Set to Array for CheckboxTree
+  const checked = Array.from(selectedFields);
+  const expanded = Array.from(expandedFields);
+
+  // Handle checkbox changes
+  const handleCheck = (checked: string[]) => {
+    const newSelected = new Set(checked);
+    const oldSelected = selectedFields;
+
+    // Find what changed
+    const added = checked.filter(path => !oldSelected.has(path));
+    const removed = Array.from(oldSelected).filter(path => !checked.includes(path));
+
+    // Call onFieldToggle for each change
+    added.forEach(path => onFieldToggle(path));
+    removed.forEach(path => onFieldToggle(path));
+  };
+
+  // Handle expand/collapse
+  const handleExpand = (expanded: string[]) => {
+    const newExpanded = new Set(expanded);
+    const oldExpanded = expandedFields;
+
+    // Find what changed
+    const added = expanded.filter(path => !oldExpanded.has(path));
+    const removed = Array.from(oldExpanded).filter(path => !expanded.includes(path));
+
+    // Call onExpandToggle for each change
+    added.forEach(path => onExpandToggle(path));
+    removed.forEach(path => onExpandToggle(path));
+  };
+
+  // Custom icons using Lucide
+  const icons = {
+    check: <span className="rct-icon rct-icon-check" />,
+    uncheck: <span className="rct-icon rct-icon-uncheck" />,
+    halfCheck: <span className="rct-icon rct-icon-half-check" />,
+    expandClose: <ChevronRight className="h-4 w-4" />,
+    expandOpen: <ChevronDown className="h-4 w-4" />,
+    expandAll: <span className="rct-icon rct-icon-expand-all" />,
+    collapseAll: <span className="rct-icon rct-icon-collapse-all" />,
+    parentClose: null,
+    parentOpen: null,
+    leaf: null,
+  };
+
+  // Custom node renderer with type badge and sample value
+  const renderNode = ({ node, ...rest }: { node: CheckboxTreeNode; [key: string]: any }): ReactNode => {
+    const typeColors = typeColorMap[node.fieldType || 'string'] || typeColorMap.string;
 
     return (
-      <TreeItem
-        key={field.path}
-        field={field}
-        level={level}
-        isExpanded={isExpanded}
-        isSelected={checkboxState}
-        onSelect={() => onFieldToggle(field.path)}
-        onExpandToggle={() => onExpandToggle(field.path)}
-        renderChild={renderFieldItem}
-        showSample={true}
-      />
+      <span className="rct-title">
+        {/* Type badge */}
+        <Badge
+          variant="outline"
+          className={cn(
+            'flex-shrink-0 border px-1.5 py-0 text-[10px] font-mono uppercase',
+            typeColors.badge
+          )}
+        >
+          {node.fieldType}
+        </Badge>
+
+        {/* Field name */}
+        <span className="text-sm">
+          {node.label}
+        </span>
+
+        {/* Sample value for leaf nodes */}
+        {node.isLeaf && node.sample !== undefined && node.sample !== null && (
+          <span className="ml-auto mr-2 max-w-[200px] truncate text-xs text-muted-foreground opacity-60">
+            {String(node.sample)}
+          </span>
+        )}
+      </span>
     );
   };
 
@@ -149,9 +253,7 @@ export function FieldsTab({
           <div className="flex items-center space-x-2">
             <Checkbox
               id="select-all"
-              checked={selectAllChecked}
-              // @ts-ignore - indeterminate is valid
-              indeterminate={selectAllIndeterminate}
+              checked={selectAllIndeterminate ? 'indeterminate' : selectAllChecked}
               onCheckedChange={onSelectAllChange}
             />
             <label htmlFor="select-all" className="text-sm font-medium">
@@ -183,20 +285,30 @@ export function FieldsTab({
         </Alert>
       </div>
 
-      {/* Main Content - Field Tree + Selected Sidebar */}
+      {/* Main Content - Tree + Selected Sidebar */}
       <div className="flex-1 flex min-h-0">
-        {/* Field Tree */}
+        {/* Checkbox Tree */}
         <div className="flex-1 border-r border-[#3a3a3a]">
           <ScrollArea className="h-full">
             <div className="p-4">
-              {filteredFields.length === 0 ? (
+              {filteredNodes.length === 0 ? (
                 <div className="text-center py-8 text-sm text-muted-foreground">
                   No fields match your search
                 </div>
               ) : (
-                <div className="space-y-1">
-                  {filteredFields.map(field => renderFieldItem(field, 0))}
-                </div>
+                <CheckboxTree
+                  nodes={filteredNodes}
+                  checked={checked}
+                  expanded={expanded}
+                  onCheck={handleCheck}
+                  onExpand={handleExpand}
+                  icons={icons}
+                  showNodeIcon={false}
+                  onlyLeafCheckboxes={true}
+                  noCascade={false}
+                  expandOnClick={false}
+                  renderNode={renderNode}
+                />
               )}
             </div>
           </ScrollArea>

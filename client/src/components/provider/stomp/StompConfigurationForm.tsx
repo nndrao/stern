@@ -3,7 +3,7 @@
  * Enhanced 3-tab interface for STOMP provider configuration
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
@@ -52,8 +52,17 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
   const [manualColumns, setManualColumns] = useState<ColumnDefinition[]>([]);
   const [fieldColumnOverrides, setFieldColumnOverrides] = useState<Record<string, Partial<ColumnDefinition>>>({});
 
-  // Load existing configuration
+  // Refs to track previous values and prevent infinite loops
+  const previousInferredFieldsRef = useRef<string>('');
+  const previousColumnsRef = useRef<string>('');
+  const isInitialLoadRef = useRef(true);
+
+  // Load existing configuration (only on initial mount)
   useEffect(() => {
+    // Only run on initial load, not on subsequent updates
+    if (!isInitialLoadRef.current) return;
+    isInitialLoadRef.current = false;
+
     if (config.inferredFields && config.inferredFields.length > 0) {
       const fieldNodes = config.inferredFields.map(convertFieldInfoToNode);
       setInferredFields(fieldNodes);
@@ -109,7 +118,7 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
       setSelectedFields(selected);
       setFieldColumnOverrides(overrides);
     }
-  }, [config.inferredFields, config.columnDefinitions]);
+  }, []);
 
   // Update select all checkbox state
   useEffect(() => {
@@ -150,10 +159,20 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
       const columnsFromFields = buildColumnsFromFields();
       const allColumns = [...columnsFromFields, ...manualColumns];
 
-      onChange('inferredFields', inferredFieldsData);
-      onChange('columnDefinitions', allColumns);
+      // Only update if values have actually changed (using refs to prevent infinite loops)
+      const newInferredFields = JSON.stringify(inferredFieldsData);
+      const newColumns = JSON.stringify(allColumns);
+
+      if (previousInferredFieldsRef.current !== newInferredFields) {
+        previousInferredFieldsRef.current = newInferredFields;
+        onChange('inferredFields', inferredFieldsData);
+      }
+      if (previousColumnsRef.current !== newColumns) {
+        previousColumnsRef.current = newColumns;
+        onChange('columnDefinitions', allColumns);
+      }
     }
-  }, [inferredFields, selectedFields, manualColumns, fieldColumnOverrides]);
+  }, [inferredFields, selectedFields, manualColumns, fieldColumnOverrides, onChange]);
 
   // Ensure topics are set before save (for validation)
   useEffect(() => {
@@ -362,31 +381,47 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
   };
 
   const handleFieldToggle = (path: string) => {
+    console.log('[handleFieldToggle] Toggling field:', path);
+    console.log('[handleFieldToggle] Current selectedFields state:', Array.from(selectedFields));
     const field = findFieldByPath(path, inferredFields);
-    if (!field) return;
-
-    const newSelected = new Set(selectedFields);
-
-    if (field.type === 'object') {
-      // For object fields, toggle all non-object leaf children
-      const leafPaths = collectNonObjectLeaves(field);
-      const allLeavesSelected = leafPaths.every(leafPath => newSelected.has(leafPath));
-
-      if (allLeavesSelected) {
-        leafPaths.forEach(leafPath => newSelected.delete(leafPath));
-      } else {
-        leafPaths.forEach(leafPath => newSelected.add(leafPath));
-      }
-    } else {
-      // For non-object fields, toggle normally
-      if (newSelected.has(path)) {
-        newSelected.delete(path);
-      } else {
-        newSelected.add(path);
-      }
+    if (!field) {
+      console.log('[handleFieldToggle] Field not found:', path);
+      return;
     }
 
-    setSelectedFields(newSelected);
+    setSelectedFields(prevSelected => {
+      console.log('[handleFieldToggle] Inside setSelectedFields callback, prevSelected:', Array.from(prevSelected));
+      const newSelected = new Set(prevSelected);
+      console.log('[handleFieldToggle] Created new Set, size:', newSelected.size);
+
+      if (field.type === 'object') {
+        // For object fields, toggle all non-object leaf children
+        const leafPaths = collectNonObjectLeaves(field);
+        const allLeavesSelected = leafPaths.every(leafPath => newSelected.has(leafPath));
+
+        console.log('[handleFieldToggle] Object field, leaf paths:', leafPaths.length, 'all selected:', allLeavesSelected);
+
+        if (allLeavesSelected) {
+          leafPaths.forEach(leafPath => newSelected.delete(leafPath));
+        } else {
+          leafPaths.forEach(leafPath => newSelected.add(leafPath));
+        }
+      } else {
+        // For non-object fields, toggle normally
+        const wasSelected = newSelected.has(path);
+        console.log('[handleFieldToggle] Leaf field, was selected:', wasSelected);
+
+        if (wasSelected) {
+          newSelected.delete(path);
+        } else {
+          newSelected.add(path);
+        }
+      }
+
+      console.log('[handleFieldToggle] Returning new selected count:', newSelected.size);
+      console.log('[handleFieldToggle] Returning new selected fields:', Array.from(newSelected));
+      return newSelected;
+    });
   };
 
   const handleExpandToggle = (path: string) => {

@@ -361,7 +361,7 @@ export class StompDatasourceProvider extends EventEmitter {
         // Recurse for objects
         if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
           fields[path].children = {};
-          this.inferObjectChildren(value, fields[path].children!);
+          this.inferObjectChildren(value, fields[path].children!, path);
         }
       } else {
         // Existing field - update nullability
@@ -374,7 +374,7 @@ export class StompDatasourceProvider extends EventEmitter {
           if (!fields[path].children) {
             fields[path].children = {};
           }
-          this.inferObjectChildren(value, fields[path].children!);
+          this.inferObjectChildren(value, fields[path].children!, path);
         }
       }
     });
@@ -385,12 +385,15 @@ export class StompDatasourceProvider extends EventEmitter {
    */
   private static inferObjectChildren(
     obj: any,
-    children: Record<string, FieldInfo>
+    children: Record<string, FieldInfo>,
+    parentPath: string = ''
   ): void {
     Object.entries(obj).forEach(([key, value]) => {
+      const fullPath = parentPath ? `${parentPath}.${key}` : key;
+
       if (!children[key]) {
         children[key] = {
-          path: key,
+          path: fullPath,
           type: this.inferType(value),
           nullable: value === null || value === undefined,
           sample: value
@@ -399,7 +402,7 @@ export class StompDatasourceProvider extends EventEmitter {
         // Recurse for nested objects
         if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
           children[key].children = {};
-          this.inferObjectChildren(value, children[key].children!);
+          this.inferObjectChildren(value, children[key].children!, fullPath);
         }
       } else {
         // Update nullability
@@ -412,7 +415,7 @@ export class StompDatasourceProvider extends EventEmitter {
           if (!children[key].children) {
             children[key].children = {};
           }
-          this.inferObjectChildren(value, children[key].children!);
+          this.inferObjectChildren(value, children[key].children!, fullPath);
         }
       }
     });

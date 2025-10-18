@@ -115,3 +115,44 @@ export function filterFields(fields: FieldNode[], query: string): FieldNode[] {
     return acc;
   }, []);
 }
+
+/**
+ * Checkbox tree node type for react-checkbox-tree
+ */
+export interface CheckboxTreeNode {
+  value: string;                    // Unique ID (full path)
+  label: string;                    // Display name
+  children?: CheckboxTreeNode[];    // Child nodes
+  className?: string;               // Custom CSS class
+  showCheckbox?: boolean;           // Show/hide checkbox for this node
+  // Custom metadata for rendering
+  fieldType?: string;               // Field type for badge
+  sample?: any;                     // Sample value
+  isLeaf?: boolean;                 // Is leaf field (selectable)
+}
+
+/**
+ * Convert hierarchical FieldNode tree to react-checkbox-tree format
+ */
+export function convertFieldsToCheckboxTree(fields: FieldNode[]): CheckboxTreeNode[] {
+  const convert = (field: FieldNode): CheckboxTreeNode => {
+    const isLeaf = field.type !== 'object' || !field.children || field.children.length === 0;
+
+    const node: CheckboxTreeNode = {
+      value: field.path,              // Use full path as unique ID
+      label: field.name,              // Display just the field name
+      fieldType: field.type,          // Store type for badge rendering
+      sample: field.sample,           // Store sample for display
+      isLeaf: isLeaf,
+      showCheckbox: isLeaf,           // Only show checkbox on leaf nodes
+    };
+
+    if (field.children && field.children.length > 0) {
+      node.children = field.children.map(child => convert(child));
+    }
+
+    return node;
+  };
+
+  return fields.map(field => convert(field));
+}

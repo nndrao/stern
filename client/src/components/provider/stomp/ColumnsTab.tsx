@@ -1,33 +1,89 @@
 /**
- * Columns Tab Component
- * Configure column definitions and overrides
+ * Columns Tab Component - AG-Grid Edition
+ * Configure column definitions with in-grid editing (AGV3 pattern)
  */
 
-import React from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { Trash2, Database, Plus } from 'lucide-react';
-import { ColumnDefinition, FieldInfo } from '@stern/shared-types';
+import { ModuleRegistry, themeQuartz, ColDef, GridApi, GridReadyEvent, CellValueChangedEvent } from 'ag-grid-community';
+import { AllEnterpriseModule } from 'ag-grid-enterprise';
+import { AgGridReact } from 'ag-grid-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { FieldNode } from './FieldSelector';
-import { autoCapitalize } from '@/utils/stringUtils';
-import {
-  getFormatterOptions,
-  getRendererOptions,
-  getDefaultFormatter,
-  getDefaultRenderer
-} from '@/constants/columnFormatters';
+import { ColumnDefinition } from '@stern/shared-types';
 
-interface ManualColumnFormData {
-  field: string;
-  headerName: string;
-  cellDataType: ColumnDefinition['cellDataType'];
-}
+// Register AG-Grid modules
+ModuleRegistry.registerModules([AllEnterpriseModule]);
+
+// Helper functions to get formatter/renderer options by type
+const getValueFormatterOptions = (cellDataType?: string): string[] => {
+  if (!cellDataType) return [];
+
+  switch (cellDataType) {
+    case 'number':
+      return [
+        '',
+        '0Decimal',
+        '1Decimal',
+        '2Decimal',
+        '3Decimal',
+        '4Decimal',
+        '5Decimal',
+        '6Decimal',
+        '7Decimal',
+        '8Decimal',
+        '9Decimal',
+        '0DecimalWithThousandSeparator',
+        '1DecimalWithThousandSeparator',
+        '2DecimalWithThousandSeparator',
+        '3DecimalWithThousandSeparator',
+        '4DecimalWithThousandSeparator',
+        '5DecimalWithThousandSeparator',
+        '6DecimalWithThousandSeparator',
+        '7DecimalWithThousandSeparator',
+        '8DecimalWithThousandSeparator',
+        '9DecimalWithThousandSeparator',
+      ];
+    case 'date':
+    case 'dateString':
+      return [
+        '',
+        'ISODate',
+        'ISODateTime',
+        'ISODateTimeMillis',
+        'USDate',
+        'USDateTime',
+        'USDateTime12Hour',
+        'EUDate',
+        'EUDateTime',
+        'LongDate',
+        'ShortDate',
+        'LongDateTime',
+        'ShortDateTime',
+        'Time24Hour',
+        'Time12Hour',
+        'TimeShort',
+        'DateFromNow',
+        'UnixTimestamp',
+        'UnixTimestampMillis',
+        'YYYY-MM-DD HH:mm:ss',
+      ];
+    default:
+      return [''];
+  }
+};
+
+const getCellRendererOptions = (cellDataType?: string): string[] => {
+  if (!cellDataType) return [''];
+
+  switch (cellDataType) {
+    case 'number':
+      return ['', 'NumericCellRenderer'];
+    default:
+      return [''];
+  }
+};
 
 interface ColumnsTabProps {
   name: string;
@@ -51,350 +107,356 @@ export function ColumnsTab({
   fieldColumnOverrides,
   onManualColumnsChange,
   onFieldColumnOverridesChange,
+  onClearAll,
   onSave,
   onCancel,
-  onClearAll,
   isEditMode = false
 }: ColumnsTabProps) {
-  const [manualColumnForm, setManualColumnForm] = React.useState<ManualColumnFormData>({
-    field: '',
-    headerName: '',
-    cellDataType: 'text'
-  });
+  const [newColumn, setNewColumn] = useState({ field: '', header: '', type: 'text' as ColumnDefinition['cellDataType'] });
+  const [, setGridApi] = useState<GridApi | null>(null);
 
-  const findFieldByPath = (path: string, fields: FieldNode[]): FieldNode | undefined => {
-    for (const field of fields) {
-      if (field.path === path) return field;
-      if (field.children) {
-        const found = findFieldByPath(path, field.children);
-        if (found) return found;
+  // Get field type from inferred fields
+  const getFieldType = (path: string): string | undefined => {
+    const findField = (fields: FieldNode[]): FieldNode | undefined => {
+      for (const field of fields) {
+        if (field.path === path) return field;
+        if (field.children) {
+          const found = findField(field.children);
+          if (found) return found;
+        }
       }
-    }
-    return undefined;
-  };
-
-  const mapFieldTypeToCellType = (type: string): ColumnDefinition['cellDataType'] => {
-    switch (type) {
-      case 'number': return 'number';
-      case 'boolean': return 'boolean';
-      case 'object': return 'object';
-      case 'date': return 'date';
-      default: return 'text';
-    }
-  };
-
-  const handleOverrideChange = (path: string, field: keyof ColumnDefinition, value: any) => {
-    const newOverrides = { ...fieldColumnOverrides };
-    if (!newOverrides[path]) {
-      newOverrides[path] = {};
-    }
-    newOverrides[path][field] = value;
-    onFieldColumnOverridesChange(newOverrides);
-  };
-
-  const handleRemoveManualColumn = (index: number) => {
-    const newColumns = [...manualColumns];
-    newColumns.splice(index, 1);
-    onManualColumnsChange(newColumns);
-  };
-
-  const handleAddManualColumn = () => {
-    if (!manualColumnForm.field.trim() || !manualColumnForm.headerName.trim()) {
-      return; // Validation - both fields required
-    }
-
-    const newColumn: ColumnDefinition = {
-      field: manualColumnForm.field.trim(),
-      headerName: manualColumnForm.headerName.trim(),
-      cellDataType: manualColumnForm.cellDataType,
-      valueFormatter: getDefaultFormatter(manualColumnForm.cellDataType),
-      cellRenderer: getDefaultRenderer(manualColumnForm.cellDataType)
+      return undefined;
     };
 
-    onManualColumnsChange([...manualColumns, newColumn]);
-
-    // Reset form
-    setManualColumnForm({
-      field: '',
-      headerName: '',
-      cellDataType: 'text'
-    });
+    const field = findField(inferredFields);
+    return field?.type;
   };
 
-  const totalColumns = selectedFields.size + manualColumns.length;
+  // Get all columns (field-based + manual)
+  const getAllColumns = useCallback(() => {
+    const columns: any[] = [];
 
-  if (totalColumns === 0) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center max-w-md p-8">
-          <Database className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-          <h3 className="text-lg font-semibold mb-2">No Columns Configured</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Select fields in the Fields tab to create columns automatically.
-          </p>
-        </div>
-      </div>
-    );
-  }
+    // Add field-based columns
+    Array.from(selectedFields).forEach(path => {
+      const override = fieldColumnOverrides[path] || {};
+      const fieldType = getFieldType(path);
+      const cellDataType = override.cellDataType || (fieldType === 'number' ? 'number' :
+                                                    fieldType === 'boolean' ? 'boolean' :
+                                                    fieldType === 'date' ? 'date' : 'text');
+
+      // Set defaults for numeric columns
+      const valueFormatter = override.valueFormatter !== undefined ? override.valueFormatter :
+                           (cellDataType === 'number' ? '2DecimalWithThousandSeparator' :
+                            cellDataType === 'date' || cellDataType === 'dateString' ? 'YYYY-MM-DD HH:mm:ss' : '');
+      const cellRenderer = override.cellRenderer !== undefined ? override.cellRenderer :
+                         (cellDataType === 'number' ? 'NumericCellRenderer' : '');
+
+      columns.push({
+        field: path,
+        headerName: override.headerName || path.split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' '),
+        cellDataType: cellDataType,
+        valueFormatter: valueFormatter,
+        cellRenderer: cellRenderer,
+        source: 'field',
+      });
+    });
+
+    // Add manual columns
+    manualColumns.forEach(col => {
+      // Set defaults for numeric columns
+      const valueFormatter = col.valueFormatter !== undefined ? col.valueFormatter :
+                           (col.cellDataType === 'number' ? '2DecimalWithThousandSeparator' :
+                            col.cellDataType === 'date' || col.cellDataType === 'dateString' ? 'YYYY-MM-DD HH:mm:ss' : '');
+      const cellRenderer = col.cellRenderer !== undefined ? col.cellRenderer :
+                         (col.cellDataType === 'number' ? 'NumericCellRenderer' : '');
+
+      columns.push({
+        ...col,
+        valueFormatter: valueFormatter,
+        cellRenderer: cellRenderer,
+        source: 'manual',
+      });
+    });
+
+    return columns;
+  }, [selectedFields, manualColumns, fieldColumnOverrides, inferredFields]);
+
+  // Column definitions for AG-Grid
+  const columnDefs: ColDef[] = useMemo(() => [
+    {
+      field: 'actions',
+      headerName: '',
+      width: 50,
+      pinned: 'left',
+      cellRenderer: (params: any) => {
+        return (
+          <button
+            className="p-1 hover:bg-[#3a3a3a] rounded text-gray-400 hover:text-white transition-colors"
+            onClick={() => {
+              if (params.data.source === 'field') {
+                // For field-based columns, we remove from selected fields
+                // This is handled externally via selectedFields state
+                // Here we just handle the UI action
+                console.log('[ColumnsTab] Cannot delete field-based column from this view');
+              } else {
+                onManualColumnsChange(manualColumns.filter(col => col.field !== params.data.field));
+              }
+            }}
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        );
+      },
+    },
+    {
+      field: 'field',
+      headerName: 'Field Name',
+      flex: 1,
+      minWidth: 150,
+      sortable: true,
+      filter: true,
+    },
+    {
+      field: 'cellDataType',
+      headerName: 'Type',
+      width: 120,
+      sortable: true,
+      filter: true,
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: {
+        values: ['text', 'number', 'boolean', 'date', 'dateString', 'object'],
+      },
+      editable: true,
+    },
+    {
+      field: 'headerName',
+      headerName: 'Header Name',
+      flex: 1,
+      minWidth: 200,
+      sortable: true,
+      filter: true,
+      editable: true,
+    },
+    {
+      field: 'valueFormatter',
+      headerName: 'Value Formatter',
+      width: 180,
+      sortable: true,
+      filter: true,
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: (params: any) => {
+        const cellDataType = params.data?.cellDataType;
+        return {
+          values: getValueFormatterOptions(cellDataType),
+        };
+      },
+      editable: true,
+    },
+    {
+      field: 'cellRenderer',
+      headerName: 'Cell Renderer',
+      width: 160,
+      sortable: true,
+      filter: true,
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: (params: any) => {
+        const cellDataType = params.data?.cellDataType;
+        return {
+          values: getCellRendererOptions(cellDataType),
+        };
+      },
+      editable: true,
+    },
+  ], [manualColumns, onManualColumnsChange]);
+
+  // Grid theme configuration
+  const gridTheme = useMemo(() => {
+    return themeQuartz.withParams({
+      accentColor: '#3a3a3a',
+      backgroundColor: '#1a1a1a',
+      borderColor: '#3a3a3a',
+      foregroundColor: '#e5e7eb',
+      headerBackgroundColor: '#2a2a2a',
+      headerFontSize: 12,
+      fontSize: 12,
+      rowHeight: 36,
+      headerHeight: 36,
+      cellHorizontalPadding: 8,
+    });
+  }, []);
+
+  // Handle grid ready
+  const onGridReady = useCallback((event: GridReadyEvent) => {
+    setGridApi(event.api);
+  }, []);
+
+  // Handle cell value changed
+  const onCellValueChanged = useCallback((event: CellValueChangedEvent) => {
+    const { data, colDef, newValue } = event;
+
+    if (data.source === 'manual') {
+      const index = manualColumns.findIndex(col => col.field === data.field);
+      if (index !== -1) {
+        const updated = [...manualColumns];
+        if (colDef?.field === 'cellDataType') {
+          // When type changes, set appropriate defaults
+          updated[index] = {
+            ...updated[index],
+            cellDataType: newValue,
+            valueFormatter: newValue === 'number' ? '2DecimalWithThousandSeparator' :
+                          (newValue === 'date' || newValue === 'dateString' ? 'YYYY-MM-DD HH:mm:ss' : ''),
+            cellRenderer: newValue === 'number' ? 'NumericCellRenderer' : undefined,
+          };
+        } else if (colDef?.field === 'headerName') {
+          updated[index] = { ...updated[index], headerName: newValue };
+        } else if (colDef?.field === 'valueFormatter') {
+          updated[index] = { ...updated[index], valueFormatter: newValue };
+        } else if (colDef?.field === 'cellRenderer') {
+          updated[index] = { ...updated[index], cellRenderer: newValue };
+        }
+        onManualColumnsChange(updated);
+      }
+    } else if (data.source === 'field') {
+      // Handle field-based columns
+      if (colDef?.field === 'cellDataType') {
+        // When type changes, set appropriate defaults
+        onFieldColumnOverridesChange({
+          ...fieldColumnOverrides,
+          [data.field]: {
+            ...fieldColumnOverrides[data.field],
+            cellDataType: newValue,
+            valueFormatter: newValue === 'number' ? '2DecimalWithThousandSeparator' :
+                          (newValue === 'date' || newValue === 'dateString' ? 'YYYY-MM-DD HH:mm:ss' : ''),
+            cellRenderer: newValue === 'number' ? 'NumericCellRenderer' : undefined,
+          },
+        });
+      } else {
+        onFieldColumnOverridesChange({
+          ...fieldColumnOverrides,
+          [data.field]: {
+            ...fieldColumnOverrides[data.field],
+            [colDef?.field as string]: newValue,
+          },
+        });
+      }
+    }
+  }, [manualColumns, fieldColumnOverrides, onManualColumnsChange, onFieldColumnOverridesChange]);
+
+  const handleAddColumn = () => {
+    if (!newColumn.field || !newColumn.header) {
+      return;
+    }
+
+    const column: ColumnDefinition = {
+      field: newColumn.field,
+      headerName: newColumn.header,
+      cellDataType: newColumn.type,
+      valueFormatter: newColumn.type === 'number' ? '2DecimalWithThousandSeparator' :
+                     (newColumn.type === 'date' || newColumn.type === 'dateString' ? 'YYYY-MM-DD HH:mm:ss' : ''),
+      cellRenderer: newColumn.type === 'number' ? 'NumericCellRenderer' : undefined,
+    };
+
+    onManualColumnsChange([...manualColumns, column]);
+    setNewColumn({ field: '', header: '', type: 'text' });
+  };
+
+  const columns = getAllColumns();
 
   return (
     <div className="h-full flex flex-col bg-[#1a1a1a]">
-      {/* Datasource Name at top */}
-      <div className="p-4 border-b border-[#3a3a3a]">
-        <Input
-          value={name}
-          readOnly
-          placeholder="Datasource Name"
-          className="text-lg font-semibold border-none shadow-none focus-visible:ring-0 px-0 bg-transparent text-white cursor-default"
-        />
-      </div>
-
-      {/* Header */}
-      <div className="p-4 border-b border-[#3a3a3a]">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-semibold">Column Configuration</h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              {selectedFields.size} field column{selectedFields.size !== 1 ? 's' : ''}, {manualColumns.length} manual column{manualColumns.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-          <Button variant="ghost" size="sm" onClick={onClearAll}>
+      {/* Add Manual Column Section */}
+      <div className="p-4 border-b border-[#3a3a3a] flex-shrink-0">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium text-gray-300">Add Manual Column</h3>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onClearAll}
+            disabled={columns.length === 0}
+            className="text-gray-300 hover:bg-[#2a2a2a] hover:text-white"
+          >
             Clear All
+          </Button>
+        </div>
+        <div className="flex items-end gap-3">
+          <div className="flex-1">
+            <Input
+              value={newColumn.field}
+              onChange={(e) => setNewColumn({ ...newColumn, field: e.target.value })}
+              placeholder="Field name"
+              className="h-9 bg-[#2a2a2a] border-[#3a3a3a] text-white placeholder:text-gray-500 focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <div className="flex-1">
+            <Input
+              value={newColumn.header}
+              onChange={(e) => setNewColumn({ ...newColumn, header: e.target.value })}
+              placeholder="Header name"
+              className="h-9 bg-[#2a2a2a] border-[#3a3a3a] text-white placeholder:text-gray-500 focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <select
+            value={newColumn.type}
+            onChange={(e) => setNewColumn({ ...newColumn, type: e.target.value as ColumnDefinition['cellDataType'] })}
+            className="h-9 px-3 border border-[#3a3a3a] bg-[#2a2a2a] text-white rounded-md text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+          >
+            <option value="text">Text</option>
+            <option value="number">Number</option>
+            <option value="boolean">Boolean</option>
+            <option value="date">Date</option>
+            <option value="dateString">Date String</option>
+            <option value="object">Object</option>
+          </select>
+          <Button
+            size="sm"
+            onClick={handleAddColumn}
+            disabled={!newColumn.field || !newColumn.header}
+            className="h-9 px-3 bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50"
+          >
+            <Plus className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Columns List */}
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-4">
-          {/* Field-Based Columns */}
-          {selectedFields.size > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                  Field Columns
-                </h4>
-                <Badge variant="secondary">{selectedFields.size}</Badge>
-              </div>
-
-              <div className="space-y-3">
-                {Array.from(selectedFields).map(path => {
-                  const field = findFieldByPath(path, inferredFields);
-                  const override = fieldColumnOverrides[path] || {};
-                  const cellDataType = override.cellDataType || mapFieldTypeToCellType(field?.type || 'string');
-
-                  return (
-                    <Card key={path}>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            {field?.type || 'unknown'}
-                          </Badge>
-                          <span className="font-mono">{path}</span>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <Label className="text-xs">Header Name</Label>
-                            <Input
-                              value={override.headerName || autoCapitalize(path)}
-                              onChange={(e) => handleOverrideChange(path, 'headerName', e.target.value)}
-                              className="h-8 text-xs mt-1"
-                            />
-                          </div>
-
-                          <div>
-                            <Label className="text-xs">Cell Data Type</Label>
-                            <Select
-                              value={cellDataType}
-                              onValueChange={(value) => handleOverrideChange(path, 'cellDataType', value)}
-                            >
-                              <SelectTrigger className="h-8 text-xs mt-1">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="text">Text</SelectItem>
-                                <SelectItem value="number">Number</SelectItem>
-                                <SelectItem value="boolean">Boolean</SelectItem>
-                                <SelectItem value="date">Date</SelectItem>
-                                <SelectItem value="dateString">Date String</SelectItem>
-                                <SelectItem value="object">Object</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <Label className="text-xs">Value Formatter</Label>
-                            <Select
-                              value={override.valueFormatter || getDefaultFormatter(cellDataType)}
-                              onValueChange={(value) => handleOverrideChange(path, 'valueFormatter', value)}
-                            >
-                              <SelectTrigger className="h-8 text-xs mt-1">
-                                <SelectValue placeholder="Default" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {getFormatterOptions(cellDataType).map(opt => (
-                                  <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div>
-                            <Label className="text-xs">Cell Renderer</Label>
-                            <Select
-                              value={override.cellRenderer || getDefaultRenderer(cellDataType)}
-                              onValueChange={(value) => handleOverrideChange(path, 'cellRenderer', value)}
-                            >
-                              <SelectTrigger className="h-8 text-xs mt-1">
-                                <SelectValue placeholder="Default" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {getRendererOptions(cellDataType).map(opt => (
-                                  <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Add Manual Column Form */}
-          {(selectedFields.size > 0 || manualColumns.length > 0) && <Separator className="my-4" />}
-
-          <div>
-            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-              Add Manual Column
-            </h4>
-
-            <Card>
-              <CardContent className="pt-4">
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs">Field Name</Label>
-                      <Input
-                        value={manualColumnForm.field}
-                        onChange={(e) => setManualColumnForm({ ...manualColumnForm, field: e.target.value })}
-                        placeholder="e.g. customField"
-                        className="h-8 text-xs mt-1"
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="text-xs">Header Name</Label>
-                      <Input
-                        value={manualColumnForm.headerName}
-                        onChange={(e) => setManualColumnForm({ ...manualColumnForm, headerName: e.target.value })}
-                        placeholder="e.g. Custom Field"
-                        className="h-8 text-xs mt-1"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 items-end">
-                    <div className="flex-1">
-                      <Label className="text-xs">Cell Data Type</Label>
-                      <Select
-                        value={manualColumnForm.cellDataType}
-                        onValueChange={(value: ColumnDefinition['cellDataType']) =>
-                          setManualColumnForm({ ...manualColumnForm, cellDataType: value })
-                        }
-                      >
-                        <SelectTrigger className="h-8 text-xs mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="text">Text</SelectItem>
-                          <SelectItem value="number">Number</SelectItem>
-                          <SelectItem value="boolean">Boolean</SelectItem>
-                          <SelectItem value="date">Date</SelectItem>
-                          <SelectItem value="dateString">Date String</SelectItem>
-                          <SelectItem value="object">Object</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <Button
-                      onClick={handleAddManualColumn}
-                      size="sm"
-                      className="h-8"
-                      disabled={!manualColumnForm.field.trim() || !manualColumnForm.headerName.trim()}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Manual Columns */}
-          {manualColumns.length > 0 && (
-            <>
-              <Separator className="my-4" />
-
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                    Manual Columns
-                  </h4>
-                  <Badge variant="secondary">{manualColumns.length}</Badge>
-                </div>
-
-                <div className="space-y-3">
-                  {manualColumns.map((column, index) => (
-                    <Card key={index}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-sm font-mono">{column.field}</CardTitle>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => handleRemoveManualColumn(index)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-xs text-muted-foreground">
-                          Header: {column.headerName}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </ScrollArea>
-
-      {/* Footer Stats */}
-      <div className="border-t p-3 bg-muted/50 text-xs text-muted-foreground">
-        Total: {totalColumns} column{totalColumns !== 1 ? 's' : ''} configured
+      {/* AG-Grid */}
+      <div className="flex-1 overflow-hidden bg-[#1a1a1a]">
+        <AgGridReact
+          theme={gridTheme}
+          className="ag-theme-quartz-dark"
+          rowData={columns}
+          columnDefs={columnDefs}
+          onGridReady={onGridReady}
+          onCellValueChanged={onCellValueChanged}
+          animateRows={true}
+          headerHeight={36}
+          rowHeight={36}
+          suppressMovableColumns={true}
+          suppressCellFocus={true}
+          suppressRowHoverHighlight={false}
+          rowSelection="single"
+          domLayout="normal"
+        />
       </div>
 
-      {/* Bottom Action Bar - AGV3 Style */}
-      <div className="border-t border-[#3a3a3a] p-4 flex-shrink-0 bg-[#1a1a1a] dialog-footer">
-        <div className="flex gap-2 justify-end">
-          <Button onClick={onSave} variant="default">
+      {/* Footer */}
+      <div className="p-4 border-t border-[#3a3a3a] bg-[#242424] flex items-center justify-between flex-shrink-0">
+        <div className="text-sm text-gray-400">
+          {columns.length} columns total
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            onClick={onCancel}
+            className="text-gray-300 hover:bg-[#2a2a2a] hover:text-white"
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="default"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            onClick={onSave}
+          >
             {isEditMode ? 'Update Datasource' : 'Create Datasource'}
           </Button>
         </div>
