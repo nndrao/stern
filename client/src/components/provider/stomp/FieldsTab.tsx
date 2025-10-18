@@ -3,18 +3,16 @@
  * Interface for selecting fields from inferred schema using a tree component
  */
 
-import { useMemo, ReactNode } from 'react';
-import CheckboxTree from 'react-checkbox-tree';
+import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Search, Database, Loader2, Info, ChevronRight, ChevronDown } from 'lucide-react';
-import { FieldNode, convertFieldsToCheckboxTree, CheckboxTreeNode } from './FieldSelector';
-import { cn } from '@/lib/utils';
-import '@/styles/checkbox-tree-dark.css';
+import { Search, Database, Loader2, Info } from 'lucide-react';
+import { FieldNode } from './FieldSelector';
+import { SimpleTreeView, TreeNode } from './SimpleTreeView';
 
 // Type badge color mapping
 const typeColorMap: Record<string, { badge: string; text: string }> = {
@@ -83,19 +81,32 @@ export function FieldsTab({
   inferring = false,
   isEditMode = false
 }: FieldsTabProps) {
-  // Convert FieldNode tree to CheckboxTree format
-  const treeNodes = useMemo(() => {
-    return convertFieldsToCheckboxTree(inferredFields);
+  // Convert FieldNode tree to TreeNode format
+  const treeNodes = useMemo((): TreeNode[] => {
+    const convert = (field: FieldNode): TreeNode => {
+      const isLeaf = field.type !== 'object' || !field.children || field.children.length === 0;
+
+      return {
+        id: field.path,
+        label: field.name,
+        type: field.type,
+        sample: field.sample,
+        isLeaf,
+        children: field.children?.map(convert)
+      };
+    };
+
+    return inferredFields.map(convert);
   }, [inferredFields]);
 
   // Filter tree based on search query
   const filteredNodes = useMemo(() => {
     if (!fieldSearchQuery) return treeNodes;
 
-    const filterNodes = (nodes: CheckboxTreeNode[]): CheckboxTreeNode[] => {
-      return nodes.reduce((acc: CheckboxTreeNode[], node) => {
+    const filterNodes = (nodes: TreeNode[]): TreeNode[] => {
+      return nodes.reduce((acc: TreeNode[], node) => {
         const matchesSearch = node.label.toLowerCase().includes(fieldSearchQuery.toLowerCase()) ||
-                             node.value.toLowerCase().includes(fieldSearchQuery.toLowerCase());
+                             node.id.toLowerCase().includes(fieldSearchQuery.toLowerCase());
 
         if (node.children) {
           const filteredChildren = filterNodes(node.children);
@@ -115,84 +126,6 @@ export function FieldsTab({
 
     return filterNodes(treeNodes);
   }, [treeNodes, fieldSearchQuery]);
-
-  // Convert Set to Array for CheckboxTree
-  const checked = Array.from(selectedFields);
-  const expanded = Array.from(expandedFields);
-
-  // Handle checkbox changes
-  const handleCheck = (checked: string[]) => {
-    const newSelected = new Set(checked);
-    const oldSelected = selectedFields;
-
-    // Find what changed
-    const added = checked.filter(path => !oldSelected.has(path));
-    const removed = Array.from(oldSelected).filter(path => !checked.includes(path));
-
-    // Call onFieldToggle for each change
-    added.forEach(path => onFieldToggle(path));
-    removed.forEach(path => onFieldToggle(path));
-  };
-
-  // Handle expand/collapse
-  const handleExpand = (expanded: string[]) => {
-    const newExpanded = new Set(expanded);
-    const oldExpanded = expandedFields;
-
-    // Find what changed
-    const added = expanded.filter(path => !oldExpanded.has(path));
-    const removed = Array.from(oldExpanded).filter(path => !expanded.includes(path));
-
-    // Call onExpandToggle for each change
-    added.forEach(path => onExpandToggle(path));
-    removed.forEach(path => onExpandToggle(path));
-  };
-
-  // Custom icons using Lucide
-  const icons = {
-    check: <span className="rct-icon rct-icon-check" />,
-    uncheck: <span className="rct-icon rct-icon-uncheck" />,
-    halfCheck: <span className="rct-icon rct-icon-half-check" />,
-    expandClose: <ChevronRight className="h-4 w-4" />,
-    expandOpen: <ChevronDown className="h-4 w-4" />,
-    expandAll: <span className="rct-icon rct-icon-expand-all" />,
-    collapseAll: <span className="rct-icon rct-icon-collapse-all" />,
-    parentClose: null,
-    parentOpen: null,
-    leaf: null,
-  };
-
-  // Custom node renderer with type badge and sample value
-  const renderNode = ({ node, ...rest }: { node: CheckboxTreeNode; [key: string]: any }): ReactNode => {
-    const typeColors = typeColorMap[node.fieldType || 'string'] || typeColorMap.string;
-
-    return (
-      <span className="rct-title">
-        {/* Type badge */}
-        <Badge
-          variant="outline"
-          className={cn(
-            'flex-shrink-0 border px-1.5 py-0 text-[10px] font-mono uppercase',
-            typeColors.badge
-          )}
-        >
-          {node.fieldType}
-        </Badge>
-
-        {/* Field name */}
-        <span className="text-sm">
-          {node.label}
-        </span>
-
-        {/* Sample value for leaf nodes */}
-        {node.isLeaf && node.sample !== undefined && node.sample !== null && (
-          <span className="ml-auto mr-2 max-w-[200px] truncate text-xs text-muted-foreground opacity-60">
-            {String(node.sample)}
-          </span>
-        )}
-      </span>
-    );
-  };
 
   if (inferredFields.length === 0) {
     return (
@@ -224,19 +157,19 @@ export function FieldsTab({
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#1a1a1a]">
+    <div className="h-full flex flex-col bg-background">
       {/* Datasource Name at top */}
-      <div className="p-4 border-b border-[#3a3a3a]">
+      <div className="p-4 border-b border-border">
         <Input
           value={name}
           readOnly
           placeholder="Datasource Name"
-          className="text-lg font-semibold border-none shadow-none focus-visible:ring-0 px-0 bg-transparent text-white cursor-default"
+          className="text-lg font-semibold border-none shadow-none focus-visible:ring-0 px-0 bg-transparent cursor-default"
         />
       </div>
 
       {/* Header */}
-      <div className="p-4 border-b border-[#3a3a3a] space-y-3">
+      <div className="p-4 border-b border-border space-y-3">
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -288,7 +221,7 @@ export function FieldsTab({
       {/* Main Content - Tree + Selected Sidebar */}
       <div className="flex-1 flex min-h-0">
         {/* Checkbox Tree */}
-        <div className="flex-1 border-r border-[#3a3a3a]">
+        <div className="flex-1 border-r border-border">
           <ScrollArea className="h-full">
             <div className="p-4">
               {filteredNodes.length === 0 ? (
@@ -296,18 +229,13 @@ export function FieldsTab({
                   No fields match your search
                 </div>
               ) : (
-                <CheckboxTree
+                <SimpleTreeView
                   nodes={filteredNodes}
-                  checked={checked}
-                  expanded={expanded}
-                  onCheck={handleCheck}
-                  onExpand={handleExpand}
-                  icons={icons}
-                  showNodeIcon={false}
-                  onlyLeafCheckboxes={true}
-                  noCascade={false}
-                  expandOnClick={false}
-                  renderNode={renderNode}
+                  selected={selectedFields}
+                  expanded={expandedFields}
+                  onSelect={onFieldToggle}
+                  onExpand={onExpandToggle}
+                  typeColorMap={typeColorMap}
                 />
               )}
             </div>
@@ -315,8 +243,8 @@ export function FieldsTab({
         </div>
 
         {/* Selected Fields Sidebar */}
-        <div className="w-64 bg-[#1a1a1a] flex flex-col">
-          <div className="p-3 border-b border-[#3a3a3a]">
+        <div className="w-64 bg-muted/20 flex flex-col">
+          <div className="p-3 border-b border-border">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Selected Fields
@@ -340,7 +268,7 @@ export function FieldsTab({
                     .map(path => (
                       <div
                         key={path}
-                        className="text-xs font-mono text-gray-300 py-1 px-2 bg-[#2a2a2a] rounded hover:bg-[#3a3a3a] transition-colors"
+                        className="text-xs font-mono py-1 px-2 bg-accent/50 rounded hover:bg-accent transition-colors"
                       >
                         {path}
                       </div>
@@ -352,10 +280,10 @@ export function FieldsTab({
         </div>
       </div>
 
-      {/* Bottom Action Bar - AGV3 Style */}
-      <div className="border-t border-[#3a3a3a] p-4 flex-shrink-0 bg-[#1a1a1a] dialog-footer">
+      {/* Bottom Action Bar */}
+      <div className="border-t border-border p-4 flex-shrink-0 bg-background dialog-footer">
         <div className="flex gap-2 justify-between items-center">
-          <div className="text-sm text-gray-400">
+          <div className="text-sm text-muted-foreground">
             {selectedFields.size} field{selectedFields.size !== 1 ? 's' : ''} selected
           </div>
           <div className="flex gap-2">

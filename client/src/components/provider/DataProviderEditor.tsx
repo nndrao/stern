@@ -298,16 +298,16 @@ export const DataProviderEditor: React.FC<DataProviderEditorProps> = ({
   const { currentProvider, isDirty, validationResult, canUndo, canRedo } = store;
 
   return (
-    <div className="flex h-full bg-[#1a1a1a] datasource-config-window">
+    <div className="flex h-full bg-background datasource-config-window">
       {/* Left Sidebar - Fixed 320px width matching AGV3 */}
-      <div className="w-80 border-r border-[#3a3a3a] flex flex-col bg-[#242424]">
-        <div className="p-4 border-b border-[#3a3a3a]">
-          <h2 className="text-lg font-semibold text-white">Datasources</h2>
+      <div className="w-80 border-r border-border flex flex-col bg-muted/30">
+        <div className="p-4 border-b border-border">
+          <h2 className="text-lg font-semibold">Datasources</h2>
         </div>
         <div className="flex-1 overflow-hidden">
           <ProviderList userId={userId} />
         </div>
-        <div className="p-3 border-t border-[#3a3a3a]">
+        <div className="p-3 border-t border-border">
           <Button onClick={handleCreate} className="w-full" size="sm">
             <Plus className="w-4 h-4 mr-2" />
             New
@@ -316,7 +316,7 @@ export const DataProviderEditor: React.FC<DataProviderEditorProps> = ({
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col bg-[#1a1a1a]">
+      <div className="flex-1 flex flex-col bg-background">
         {currentProvider ? (
           <ProviderForm
             userId={userId}
@@ -325,7 +325,7 @@ export const DataProviderEditor: React.FC<DataProviderEditorProps> = ({
           />
         ) : (
           <div className="flex-1 flex items-center justify-center">
-            <div className="text-center text-gray-400">
+            <div className="text-center text-muted-foreground">
               Select a datasource or create a new one
             </div>
           </div>

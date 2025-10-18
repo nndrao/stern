@@ -3,7 +3,8 @@
  * Configure column definitions with in-grid editing (AGV3 pattern)
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ModuleRegistry, themeQuartz, ColDef, GridApi, GridReadyEvent, CellValueChangedEvent } from 'ag-grid-community';
@@ -114,6 +115,8 @@ export function ColumnsTab({
 }: ColumnsTabProps) {
   const [newColumn, setNewColumn] = useState({ field: '', header: '', type: 'text' as ColumnDefinition['cellDataType'] });
   const [, setGridApi] = useState<GridApi | null>(null);
+  const { theme, resolvedTheme } = useTheme();
+  const [, setThemeKey] = useState(0); // Force re-render on theme change
 
   // Get field type from inferred fields
   const getFieldType = (path: string): string | undefined => {
@@ -191,7 +194,7 @@ export function ColumnsTab({
       cellRenderer: (params: any) => {
         return (
           <button
-            className="p-1 hover:bg-[#3a3a3a] rounded text-gray-400 hover:text-white transition-colors"
+            className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-foreground transition-colors"
             onClick={() => {
               if (params.data.source === 'field') {
                 // For field-based columns, we remove from selected fields
@@ -269,21 +272,45 @@ export function ColumnsTab({
     },
   ], [manualColumns, onManualColumnsChange]);
 
-  // Grid theme configuration
+  // Force grid to update when theme changes
+  useEffect(() => {
+    setThemeKey(prev => prev + 1);
+  }, [theme, resolvedTheme]);
+
+  // Grid theme configuration - dynamically read from CSS variables
   const gridTheme = useMemo(() => {
+    // Read CSS custom properties to match the current theme
+    const root = document.documentElement;
+    const computedStyle = getComputedStyle(root);
+
+    // Helper to get HSL color and convert to hex
+    const getHslColor = (variable: string, fallback: string) => {
+      const hsl = computedStyle.getPropertyValue(variable).trim();
+      if (!hsl) return fallback;
+
+      // Convert HSL to hex (simple approximation for theme colors)
+      const [h, s, l] = hsl.split(' ').map(v => parseFloat(v));
+
+      // For grayscale (s=0), just use lightness
+      const lightness = l / 100;
+      const value = Math.round(lightness * 255);
+      const hex = value.toString(16).padStart(2, '0');
+      return `#${hex}${hex}${hex}`;
+    };
+
     return themeQuartz.withParams({
-      accentColor: '#3a3a3a',
-      backgroundColor: '#1a1a1a',
-      borderColor: '#3a3a3a',
-      foregroundColor: '#e5e7eb',
-      headerBackgroundColor: '#2a2a2a',
+      accentColor: getHslColor('--accent', '#3a3a3a'),
+      backgroundColor: getHslColor('--background', '#1a1a1a'),
+      borderColor: getHslColor('--border', '#3a3a3a'),
+      foregroundColor: getHslColor('--foreground', '#e5e7eb'),
+      headerBackgroundColor: getHslColor('--muted', '#2a2a2a'),
       headerFontSize: 12,
       fontSize: 12,
       rowHeight: 36,
       headerHeight: 36,
       cellHorizontalPadding: 8,
     });
-  }, []);
+  }, [theme, resolvedTheme]);
 
   // Handle grid ready
   const onGridReady = useCallback((event: GridReadyEvent) => {
@@ -363,17 +390,17 @@ export function ColumnsTab({
   const columns = getAllColumns();
 
   return (
-    <div className="h-full flex flex-col bg-[#1a1a1a]">
+    <div className="h-full flex flex-col bg-background">
       {/* Add Manual Column Section */}
-      <div className="p-4 border-b border-[#3a3a3a] flex-shrink-0">
+      <div className="p-4 border-b border-border flex-shrink-0">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-gray-300">Add Manual Column</h3>
+          <h3 className="text-sm font-medium text-foreground">Add Manual Column</h3>
           <Button
             size="sm"
             variant="ghost"
             onClick={onClearAll}
             disabled={columns.length === 0}
-            className="text-gray-300 hover:bg-[#2a2a2a] hover:text-white"
+            className="text-foreground hover:bg-muted hover:text-foreground"
           >
             Clear All
           </Button>
@@ -384,7 +411,7 @@ export function ColumnsTab({
               value={newColumn.field}
               onChange={(e) => setNewColumn({ ...newColumn, field: e.target.value })}
               placeholder="Field name"
-              className="h-9 bg-[#2a2a2a] border-[#3a3a3a] text-white placeholder:text-gray-500 focus:border-primary focus:ring-1 focus:ring-primary"
+              className="h-9 bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </div>
           <div className="flex-1">
@@ -392,13 +419,13 @@ export function ColumnsTab({
               value={newColumn.header}
               onChange={(e) => setNewColumn({ ...newColumn, header: e.target.value })}
               placeholder="Header name"
-              className="h-9 bg-[#2a2a2a] border-[#3a3a3a] text-white placeholder:text-gray-500 focus:border-primary focus:ring-1 focus:ring-primary"
+              className="h-9 bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </div>
           <select
             value={newColumn.type}
             onChange={(e) => setNewColumn({ ...newColumn, type: e.target.value as ColumnDefinition['cellDataType'] })}
-            className="h-9 px-3 border border-[#3a3a3a] bg-[#2a2a2a] text-white rounded-md text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+            className="h-9 px-3 border border-border bg-muted text-foreground rounded-md text-sm focus:border-primary focus:ring-1 focus:ring-primary"
           >
             <option value="text">Text</option>
             <option value="number">Number</option>
@@ -419,7 +446,7 @@ export function ColumnsTab({
       </div>
 
       {/* AG-Grid */}
-      <div className="flex-1 overflow-hidden bg-[#1a1a1a]">
+      <div className="flex-1 overflow-hidden bg-background">
         <AgGridReact
           theme={gridTheme}
           className="ag-theme-quartz-dark"
@@ -439,8 +466,8 @@ export function ColumnsTab({
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-[#3a3a3a] bg-[#242424] flex items-center justify-between flex-shrink-0">
-        <div className="text-sm text-gray-400">
+      <div className="p-4 border-t border-border bg-muted/30 flex items-center justify-between flex-shrink-0">
+        <div className="text-sm text-muted-foreground">
           {columns.length} columns total
         </div>
 
@@ -448,7 +475,7 @@ export function ColumnsTab({
           <Button
             variant="ghost"
             onClick={onCancel}
-            className="text-gray-300 hover:bg-[#2a2a2a] hover:text-white"
+            className="text-foreground hover:bg-muted hover:text-foreground"
           >
             Cancel
           </Button>
