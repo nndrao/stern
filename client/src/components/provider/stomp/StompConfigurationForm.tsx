@@ -287,8 +287,6 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
         requestMessage = `/snapshot/${dataType}/${clientId}/${messageRate}${batchSize ? `/${batchSize}` : ''}`;
       }
 
-      console.log('[FieldInference] Connecting with topics:', { listenerTopic, requestMessage });
-
       // Create provider with resolved topics
       const provider = new StompDatasourceProvider({
         websocketUrl: config.websocketUrl,
@@ -304,9 +302,7 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
       });
 
       // Fetch sample data (up to 100 rows)
-      const result = await provider.fetchSnapshot(100, (batch, total) => {
-        console.log(`[FieldInference] Received ${batch.length} rows, total: ${total}`);
-      });
+      const result = await provider.fetchSnapshot(100);
 
       // Clean up session
       templateResolver.clearSession(sessionId);
@@ -321,8 +317,6 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
         setInferring(false);
         return;
       }
-
-      console.log(`[FieldInference] Received ${result.data.length} rows for inference`);
 
       // Infer fields from data
       const inferredFieldsMap = StompDatasourceProvider.inferFields(result.data);
@@ -381,25 +375,18 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
   };
 
   const handleFieldToggle = (path: string) => {
-    console.log('[handleFieldToggle] Toggling field:', path);
-    console.log('[handleFieldToggle] Current selectedFields state:', Array.from(selectedFields));
     const field = findFieldByPath(path, inferredFields);
     if (!field) {
-      console.log('[handleFieldToggle] Field not found:', path);
       return;
     }
 
     setSelectedFields(prevSelected => {
-      console.log('[handleFieldToggle] Inside setSelectedFields callback, prevSelected:', Array.from(prevSelected));
       const newSelected = new Set(prevSelected);
-      console.log('[handleFieldToggle] Created new Set, size:', newSelected.size);
 
       if (field.type === 'object') {
         // For object fields, toggle all non-object leaf children
         const leafPaths = collectNonObjectLeaves(field);
         const allLeavesSelected = leafPaths.every(leafPath => newSelected.has(leafPath));
-
-        console.log('[handleFieldToggle] Object field, leaf paths:', leafPaths.length, 'all selected:', allLeavesSelected);
 
         if (allLeavesSelected) {
           leafPaths.forEach(leafPath => newSelected.delete(leafPath));
@@ -409,7 +396,6 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
       } else {
         // For non-object fields, toggle normally
         const wasSelected = newSelected.has(path);
-        console.log('[handleFieldToggle] Leaf field, was selected:', wasSelected);
 
         if (wasSelected) {
           newSelected.delete(path);
@@ -418,8 +404,6 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
         }
       }
 
-      console.log('[handleFieldToggle] Returning new selected count:', newSelected.size);
-      console.log('[handleFieldToggle] Returning new selected fields:', Array.from(newSelected));
       return newSelected;
     });
   };

@@ -22,17 +22,10 @@ const THEME_TOPIC = 'stern-platform:theme-change';
 export function useOpenfinTheme() {
   const { theme, setTheme, resolvedTheme } = useTheme();
 
-  // Log theme state changes
-  useEffect(() => {
-    logger.info('[THEME] React theme state updated', { theme, resolvedTheme }, 'useOpenfinTheme');
-    logger.info(`[THEME] HTML element classes: ${document.documentElement.className}`, undefined, 'useOpenfinTheme');
-  }, [theme, resolvedTheme]);
-
   // Listen for theme changes from other windows via IAB
   useEffect(() => {
     // Only run in OpenFin environment
     if (typeof window === 'undefined' || !window.fin) {
-      logger.info('[THEME] Not in OpenFin environment, IAB sync disabled', undefined, 'useOpenfinTheme');
       return;
     }
 
@@ -44,14 +37,12 @@ export function useOpenfinTheme() {
         const unsubscribe = await fin.InterApplicationBus.subscribe(
           { uuid: '*' }, // Listen to all apps
           THEME_TOPIC,
-          (message: { theme: string }, identity) => {
+          (message: { theme: string }, identity: any) => {
             if (isSubscribed) {
               const newTheme = message.theme;
-              logger.info(`[THEME] 🎨 Received theme change message: ${newTheme} from ${identity.uuid}`, undefined, 'useOpenfinTheme');
 
               // Update React theme
               setTheme(newTheme);
-              logger.info(`[THEME] ✅ Updated theme to: ${newTheme}`, undefined, 'useOpenfinTheme');
 
               // Verify after a delay
               setTimeout(() => {
@@ -59,28 +50,21 @@ export function useOpenfinTheme() {
                 const hasClass = htmlElement.classList.contains('dark');
                 const expected = newTheme === 'dark';
 
-                if (hasClass === expected) {
-                  logger.info(`[THEME] ✅ Theme applied successfully: ${newTheme}`, undefined, 'useOpenfinTheme');
-                } else {
-                  logger.error(`[THEME] ❌ Theme mismatch! Expected: ${newTheme}, HTML has dark: ${hasClass}`, undefined, 'useOpenfinTheme');
+                if (hasClass !== expected) {
+                  logger.error(`Theme mismatch! Expected: ${newTheme}, HTML has dark: ${hasClass}`, undefined, 'useOpenfinTheme');
                 }
               }, 200);
             }
           }
         );
 
-        logger.info(`[THEME] IAB subscription created for topic: ${THEME_TOPIC}`, undefined, 'useOpenfinTheme');
-
         // Cleanup on unmount
         return () => {
           isSubscribed = false;
-          if (unsubscribe) {
-            fin.InterApplicationBus.unsubscribe({ uuid: '*' }, THEME_TOPIC, unsubscribe as any);
-            logger.info('[THEME] IAB subscription cleaned up', undefined, 'useOpenfinTheme');
-          }
+          fin.InterApplicationBus.unsubscribe({ uuid: '*' }, THEME_TOPIC, unsubscribe as any);
         };
       } catch (error) {
-        logger.error('[THEME] Failed to setup IAB theme sync', error, 'useOpenfinTheme');
+        logger.error('Failed to setup IAB theme sync', error, 'useOpenfinTheme');
       }
     };
 
@@ -100,9 +84,8 @@ export function useOpenfinTheme() {
     const broadcastTheme = async () => {
       try {
         await fin.InterApplicationBus.publish(THEME_TOPIC, { theme: resolvedTheme });
-        logger.info(`[THEME] 📢 Broadcasted theme change: ${resolvedTheme}`, undefined, 'useOpenfinTheme');
       } catch (error) {
-        logger.error('[THEME] Failed to broadcast theme change', error, 'useOpenfinTheme');
+        logger.error('Failed to broadcast theme change', error, 'useOpenfinTheme');
       }
     };
 

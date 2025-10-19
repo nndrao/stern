@@ -165,26 +165,11 @@ export default function Provider() {
           if (dock.isDockAvailable()) {
             // Try to load saved dock configuration from API
             try {
-              console.log('[DOCK_CONFIG] Step 1: Loading DockApplicationsMenuItems configuration from API...');
               logger.info('Loading DockApplicationsMenuItems configuration from API...', undefined, 'Provider');
               const userId = 'default-user'; // TODO: Get from auth service
-              console.log('[DOCK_CONFIG] Step 2: Fetching singleton config for userId:', userId);
               const menuItemsConfig = await dockConfigService.loadApplicationsMenuItems(userId);
-              console.log('[DOCK_CONFIG] Step 3: API returned config:', menuItemsConfig ? 'Found' : 'Not found');
-              if (menuItemsConfig) {
-                console.log('[DOCK_CONFIG] Step 3a: Full config response:', JSON.stringify(menuItemsConfig, null, 2));
-              }
 
               if (menuItemsConfig && menuItemsConfig.config?.menuItems) {
-                console.log('[DOCK_CONFIG] Step 4: Found singleton config:', {
-                  configId: menuItemsConfig.configId,
-                  name: menuItemsConfig.name,
-                  componentType: menuItemsConfig.componentType,
-                  componentSubType: menuItemsConfig.componentSubType,
-                  menuItemsCount: menuItemsConfig.config.menuItems.length
-                });
-                console.log('[DOCK_CONFIG] Step 5: Menu items structure:', JSON.stringify(menuItemsConfig.config.menuItems, null, 2));
-
                 logger.info('Loaded DockApplicationsMenuItems config', {
                   configId: menuItemsConfig.configId,
                   name: menuItemsConfig.name,
@@ -296,25 +281,10 @@ export default function Provider() {
   const DashboardContent = () => {
     // Sync OpenFin platform theme with React theme provider
     // This enables the provider window to respond to theme changes from the dock
-    const { theme, resolvedTheme } = useOpenfinTheme();
-
-    // Debug logging to verify theme state
-    useEffect(() => {
-      logger.info(`[PROVIDER WINDOW] Theme state changed:`, {
-        theme,
-        resolvedTheme,
-        htmlClass: document.documentElement.className,
-        bodyClass: document.body.className
-      }, 'Provider');
-    }, [theme, resolvedTheme]);
+    useOpenfinTheme();
 
     return (
       <div className="flex h-screen bg-background text-foreground">
-        {/* Debug banner to visually verify theme */}
-        <div className="fixed top-0 right-0 z-50 bg-primary text-primary-foreground px-4 py-2 text-xs font-mono">
-          Theme: {resolvedTheme || theme || 'unknown'} | HTML: {document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
-        </div>
-
         <Sidebar
           activeTab={activeTab}
           onTabChange={setActiveTab}

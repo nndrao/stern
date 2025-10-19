@@ -98,11 +98,6 @@ export async function register(config: {
   menuItems?: DockMenuItem[];
 }): Promise<DockProviderRegistration | undefined> {
   try {
-    console.log('[DOCK_CONFIG] Step 9: register() called with:', {
-      id: config.id,
-      title: config.title,
-      menuItemsCount: config.menuItems?.length
-    });
     logger.info('Registering dock provider', { id: config.id, title: config.title }, 'dock');
 
     // Store platform settings for reload operations
@@ -117,17 +112,11 @@ export async function register(config: {
 
     // Add Applications dropdown with all menu items
     if (config.menuItems && config.menuItems.length > 0) {
-      console.log('[DOCK_CONFIG] Step 10: Building Applications button with', config.menuItems.length, 'menu items');
-      console.log('[DOCK_CONFIG] Step 11: Menu items passed to buildApplicationsButton:', JSON.stringify(config.menuItems, null, 2));
       buttons.push(buildApplicationsButton(config.menuItems));
-      console.log('[DOCK_CONFIG] Step 12: Applications button created');
-    } else {
-      console.log('[DOCK_CONFIG] Step 10: No menu items - skipping Applications button');
     }
 
     // Add system buttons (theme, reload, devtools, etc.)
     buttons.push(...buildSystemButtons());
-    console.log('[DOCK_CONFIG] Step 13: Total buttons created:', buttons.length);
 
     // Build dock configuration following workspace-starter patterns
     currentConfig = {
@@ -144,16 +133,8 @@ export async function register(config: {
       buttons
     };
 
-    console.log('[DOCK_CONFIG] Step 14: Final dock config prepared:', {
-      id: currentConfig.id,
-      title: currentConfig.title,
-      buttonsCount: currentConfig.buttons.length
-    });
-
     // Register with OpenFin
-    console.log('[DOCK_CONFIG] Step 15: Calling Dock.register() with OpenFin API...');
     registration = await Dock.register(currentConfig);
-    console.log('[DOCK_CONFIG] Step 16: Dock.register() completed successfully');
 
     logger.info('Dock registered successfully', { buttonCount: buttons.length }, 'dock');
     return registration;
@@ -172,14 +153,6 @@ export async function register(config: {
 export async function registerFromConfig(
   config: DockConfiguration
 ): Promise<DockProviderRegistration | undefined> {
-  console.log('[DOCK_CONFIG] Step 6: registerFromConfig called with:', {
-    configId: config.configId,
-    name: config.name,
-    icon: config.icon,
-    menuItemsCount: config.config.menuItems?.length
-  });
-  console.log('[DOCK_CONFIG] Step 7: Menu items before register:', JSON.stringify(config.config.menuItems, null, 2));
-
   const registerConfig = {
     id: config.configId,
     title: config.name,
@@ -194,7 +167,6 @@ export async function registerFromConfig(
     disableUserRearrangement: false
   };
 
-  console.log('[DOCK_CONFIG] Step 8: Calling register() with config:', registerConfig);
   return register(registerConfig);
 }
 
@@ -491,14 +463,10 @@ export function dockGetCustomActions(): CustomActionsMap {
       if (payload.callerType === CustomActionCallerType.CustomDropdownItem) {
         const theme = payload.customData as string;
         try {
-          logger.info(`[DOCK] Setting theme to: ${theme}`, undefined, 'dock');
-
           // Broadcast theme change to all windows via IAB
           await fin.InterApplicationBus.publish('stern-platform:theme-change', { theme });
-
-          logger.info('[DOCK] Theme change broadcasted successfully', undefined, 'dock');
         } catch (error) {
-          logger.error('[DOCK] Failed to broadcast theme change', error, 'dock');
+          logger.error('Failed to broadcast theme change', error, 'dock');
         }
       }
     },
