@@ -15,6 +15,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useOpenFinWorkspace } from '../services/OpenfinWorkspaceProvider';
 import { iabService } from '../services/OpenfinIABService';
 import { configService } from '@/services/configurationService';
+import { useOpenfinTheme } from '../hooks/useOpenfinTheme';
 import { logger } from '@/utils/logger';
 import { UnifiedConfig } from '@stern/shared-types';
 
@@ -86,6 +87,9 @@ export const OpenFinComponentProvider: React.FC<OpenFinComponentProviderProps> =
 }) => {
   const [searchParams] = useSearchParams();
   const workspace = useOpenFinWorkspace();
+
+  // Sync OpenFin platform theme with React theme provider
+  useOpenfinTheme();
 
   // State
   const [identity, setIdentity] = useState<OpenFinComponentIdentity | null>(null);

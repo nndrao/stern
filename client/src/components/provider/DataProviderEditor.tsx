@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 
 import { useDataProviderStore } from '@/stores/dataProviderStore';
+import { useOpenfinTheme } from '@/openfin/hooks/useOpenfinTheme';
 import { ProviderList } from './ProviderList';
 import { ProviderForm } from './ProviderForm';
 import { TypeSelectionDialog } from './TypeSelectionDialog';
@@ -41,6 +42,9 @@ export const DataProviderEditor: React.FC<DataProviderEditorProps> = ({
 }) => {
   const { toast } = useToast();
   const store = useDataProviderStore();
+
+  // Sync OpenFin platform theme with React theme provider
+  useOpenfinTheme();
 
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);

@@ -485,17 +485,20 @@ export function dockGetCustomActions(): CustomActionsMap {
 
     /**
      * Set theme (light or dark)
+     * Broadcasts theme change to all windows via IAB
      */
     'set-theme': async (payload: CustomActionPayload): Promise<void> => {
       if (payload.callerType === CustomActionCallerType.CustomDropdownItem) {
         const theme = payload.customData as string;
         try {
-          logger.info(`Setting theme to: ${theme}`, undefined, 'dock');
-          const platform = getCurrentSync();
-          await platform.Theme.setSelectedScheme(theme);
-          logger.info('Theme changed successfully', undefined, 'dock');
+          logger.info(`[DOCK] Setting theme to: ${theme}`, undefined, 'dock');
+
+          // Broadcast theme change to all windows via IAB
+          await fin.InterApplicationBus.publish('stern-platform:theme-change', { theme });
+
+          logger.info('[DOCK] Theme change broadcasted successfully', undefined, 'dock');
         } catch (error) {
-          logger.error('Failed to set theme', error, 'dock');
+          logger.error('[DOCK] Failed to broadcast theme change', error, 'dock');
         }
       }
     },

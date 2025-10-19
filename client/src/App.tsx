@@ -2,10 +2,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { isOpenFin, createWindow } from "@/openfin/utils/openfinUtils";
+import { useOpenfinTheme } from "@/openfin/hooks/useOpenfinTheme";
 import { logger } from "@/utils/logger";
 
 function App() {
   const isInOpenFin = isOpenFin();
+
+  // Sync OpenFin platform theme with React theme provider
+  useOpenfinTheme();
 
   const handleTestBlotterWindow = async () => {
     if (isInOpenFin) {

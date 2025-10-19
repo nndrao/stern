@@ -30,6 +30,7 @@ import { IconPicker } from './IconPicker';
 import { DockConfiguration, createMenuItem, validateDockConfiguration } from '@/openfin/types/dockConfig';
 import { useDockConfigStore } from '@/stores/dockConfigStore';
 import { useOpenFinDock } from '@/openfin/hooks/useOpenfinWorkspace';
+import { useOpenfinTheme } from '@/openfin/hooks/useOpenfinTheme';
 import '@/utils/testApi'; // Import test utility for debugging
 import { logger } from '@/utils/logger';
 
@@ -45,6 +46,9 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
   const { toast } = useToast();
   const openFinDock = useOpenFinDock();
   const store = useDockConfigStore();
+
+  // Sync OpenFin platform theme with React theme provider
+  useOpenfinTheme();
 
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const [iconPickerCallback, setIconPickerCallback] = useState<((icon: string) => void) | null>(null);

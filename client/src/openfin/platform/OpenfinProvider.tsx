@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { init } from '@openfin/workspace-platform';
 import { OpenFinWorkspaceProvider } from '../services/OpenfinWorkspaceProvider';
+import { ThemeProvider } from '@/components/theme-provider';
+import { useOpenfinTheme } from '../hooks/useOpenfinTheme';
 import { Sidebar } from '@/components/provider/Sidebar';
 import { DockConfigEditor } from '@/components/provider/DockConfigEditor';
 import { DataProviderEditor } from '@/components/provider/DataProviderEditor';
@@ -291,27 +293,55 @@ export default function Provider() {
   }
 
   // Main dashboard layout
-  const DashboardContent = () => (
-    <div className="flex h-screen bg-background">
-      <Sidebar
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        collapsed={sidebarCollapsed}
-        onCollapsedChange={setSidebarCollapsed}
-      />
-      <main className="flex-1 overflow-hidden">
-        {activeTab === 'dock' && <DockConfigEditor />}
-        {activeTab === 'providers' && <DataProviderEditor />}
-        {activeTab === 'settings' && <SettingsPanel />}
-        {activeTab === 'help' && <HelpPanel />}
-      </main>
-    </div>
-  );
+  const DashboardContent = () => {
+    // Sync OpenFin platform theme with React theme provider
+    // This enables the provider window to respond to theme changes from the dock
+    const { theme, resolvedTheme } = useOpenfinTheme();
+
+    // Debug logging to verify theme state
+    useEffect(() => {
+      logger.info(`[PROVIDER WINDOW] Theme state changed:`, {
+        theme,
+        resolvedTheme,
+        htmlClass: document.documentElement.className,
+        bodyClass: document.body.className
+      }, 'Provider');
+    }, [theme, resolvedTheme]);
+
+    return (
+      <div className="flex h-screen bg-background text-foreground">
+        {/* Debug banner to visually verify theme */}
+        <div className="fixed top-0 right-0 z-50 bg-primary text-primary-foreground px-4 py-2 text-xs font-mono">
+          Theme: {resolvedTheme || theme || 'unknown'} | HTML: {document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
+        </div>
+
+        <Sidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          collapsed={sidebarCollapsed}
+          onCollapsedChange={setSidebarCollapsed}
+        />
+        <main className="flex-1 overflow-hidden">
+          {activeTab === 'dock' && <DockConfigEditor />}
+          {activeTab === 'providers' && <DataProviderEditor />}
+          {activeTab === 'settings' && <SettingsPanel />}
+          {activeTab === 'help' && <HelpPanel />}
+        </main>
+      </div>
+    );
+  };
 
   return (
-    <OpenFinWorkspaceProvider>
-      <DashboardContent />
-      <Toaster />
-    </OpenFinWorkspaceProvider>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <OpenFinWorkspaceProvider>
+        <DashboardContent />
+        <Toaster />
+      </OpenFinWorkspaceProvider>
+    </ThemeProvider>
   );
 }
