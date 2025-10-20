@@ -33,6 +33,7 @@ import {
 import { buildUrl } from '../utils/openfinUtils';
 import { DockConfiguration, DockMenuItem } from '../types/dockConfig';
 import { launchMenuItem } from './openfinMenuLauncher';
+import { OpenFinCustomEvents } from '../types/openfinEvents';
 import { logger } from '@/utils/logger';
 
 // ============================================================================
@@ -457,17 +458,55 @@ export function dockGetCustomActions(): CustomActionsMap {
 
     /**
      * Set theme (light or dark)
-     * Broadcasts theme change to all windows via IAB
+     * Updates OpenFin platform theme (changes dock appearance) and broadcasts to all windows
      */
     'set-theme': async (payload: CustomActionPayload): Promise<void> => {
+      logger.info('[DOCK] set-theme action triggered', {
+        callerType: payload.callerType,
+        customData: payload.customData
+      }, 'dock');
+
       if (payload.callerType === CustomActionCallerType.CustomDropdownItem) {
-        const theme = payload.customData as string;
+        const theme = payload.customData as 'light' | 'dark';
         try {
-          // Broadcast theme change to all windows via IAB
-          await fin.InterApplicationBus.publish('stern-platform:theme-change', { theme });
+          logger.info(`[DOCK] Setting platform theme to: ${theme}`, undefined, 'dock');
+
+          // Update OpenFin's platform theme (changes dock appearance)
+          // DON'T await this - it hangs for 10+ seconds in OpenFin
+          // Fire and forget, let it update in the background
+          import('@openfin/workspace-platform').then(({ getCurrentSync }) => {
+            try {
+              const platform = getCurrentSync();
+              platform.Theme.setSelectedScheme(theme as any);
+              logger.info(`[DOCK] Platform theme update initiated (fire-and-forget)`, undefined, 'dock');
+            } catch (err) {
+              logger.warn('[DOCK] Platform theme update failed (non-critical)', err, 'dock');
+            }
+          }).catch((err) => {
+            logger.warn('[DOCK] Failed to import workspace-platform (non-critical)', err, 'dock');
+          });
+
+          // Immediately broadcast to all windows via IAB so React components can update
+          // This is the primary mechanism for theme synchronization
+          logger.info(`[DOCK] Broadcasting IAB event immediately...`, undefined, 'dock');
+
+          await fin.InterApplicationBus.publish(
+            OpenFinCustomEvents.THEME_CHANGE,
+            { theme }
+          );
+
+          logger.info('[DOCK] ✅ IAB theme change event broadcasted successfully', {
+            topic: OpenFinCustomEvents.THEME_CHANGE,
+            theme
+          }, 'dock');
+
         } catch (error) {
-          logger.error('Failed to broadcast theme change', error, 'dock');
+          logger.error('[DOCK] Failed to broadcast theme change', error, 'dock');
         }
+      } else {
+        logger.warn('[DOCK] set-theme called with unexpected caller type', {
+          callerType: payload.callerType
+        }, 'dock');
       }
     },
 

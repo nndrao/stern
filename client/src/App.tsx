@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { isOpenFin, createWindow } from "@/openfin/utils/openfinUtils";
 import { useOpenfinTheme } from "@/openfin/hooks/useOpenfinTheme";
 import { logger } from "@/utils/logger";
@@ -8,7 +7,9 @@ import { logger } from "@/utils/logger";
 function App() {
   const isInOpenFin = isOpenFin();
 
-  // Sync OpenFin platform theme with React theme provider
+  // Listen to theme changes from OpenFin Dock
+  // NOTE: Theme control is one-way: Dock → Components
+  // Components ONLY listen and apply themes, never change the dock's theme
   useOpenfinTheme();
 
   const handleTestBlotterWindow = async () => {
@@ -27,9 +28,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="absolute top-4 right-4">
-        <ThemeToggle />
-      </div>
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-2xl mx-auto text-center">
           <h1 className="text-4xl font-bold tracking-tight text-foreground mb-6">

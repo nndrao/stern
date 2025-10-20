@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { init } from '@openfin/workspace-platform';
 import { OpenFinWorkspaceProvider } from '../services/OpenfinWorkspaceProvider';
-import { ThemeProvider } from '@/components/theme-provider';
 import { useOpenfinTheme } from '../hooks/useOpenfinTheme';
 import { Sidebar } from '@/components/provider/Sidebar';
 import { DockConfigEditor } from '@/components/provider/DockConfigEditor';
@@ -281,7 +280,27 @@ export default function Provider() {
   const DashboardContent = () => {
     // Sync OpenFin platform theme with React theme provider
     // This enables the provider window to respond to theme changes from the dock
-    useOpenfinTheme();
+    const { theme, resolvedTheme } = useOpenfinTheme();
+
+    // Debug logging for theme state
+    useEffect(() => {
+      logger.info('[PROVIDER WINDOW] Theme state changed', {
+        theme,
+        resolvedTheme,
+        htmlClassName: document.documentElement.className,
+        htmlHasDark: document.documentElement.classList.contains('dark'),
+        bodyClassName: document.body.className,
+      }, 'DashboardContent');
+    }, [theme, resolvedTheme]);
+
+    // Log on mount
+    useEffect(() => {
+      logger.info('[PROVIDER WINDOW] DashboardContent mounted', {
+        isOpenFin: typeof window !== 'undefined' && !!window.fin,
+        currentTheme: theme,
+        resolvedTheme: resolvedTheme,
+      }, 'DashboardContent');
+    }, []);
 
     return (
       <div className="flex h-screen bg-background text-foreground">
@@ -301,17 +320,13 @@ export default function Provider() {
     );
   };
 
+  // Note: ThemeProvider is NOT needed here because the provider window route
+  // is already wrapped by ThemeProvider in main.tsx (lines 25-30)
+  // Having nested ThemeProviders prevents theme synchronization from working
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-    >
-      <OpenFinWorkspaceProvider>
-        <DashboardContent />
-        <Toaster />
-      </OpenFinWorkspaceProvider>
-    </ThemeProvider>
+    <OpenFinWorkspaceProvider>
+      <DashboardContent />
+      <Toaster />
+    </OpenFinWorkspaceProvider>
   );
 }

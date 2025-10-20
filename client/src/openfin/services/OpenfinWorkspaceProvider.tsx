@@ -266,9 +266,24 @@ const createOpenFinServices = async (): Promise<OpenFinWorkspaceServices> => {
       await fin.InterApplicationBus.publish(topic, message);
     },
     subscribeToMessages: (topic: string, callback: (message: any) => void) => {
-      const subscription = fin.InterApplicationBus.subscribe({ uuid: '*' }, topic, callback);
+      logger.info(`[IAB] Subscribing to topic: ${topic}`, undefined, 'OpenFinWorkspaceProvider');
+
+      const wrappedCallback = (message: any, identity: any) => {
+        logger.info(`[IAB] Received message on topic: ${topic}`, {
+          message,
+          from: identity?.uuid,
+          timestamp: new Date().toISOString()
+        }, 'OpenFinWorkspaceProvider');
+        callback(message, identity);
+      };
+
+      const subscription = fin.InterApplicationBus.subscribe({ uuid: '*' }, topic, wrappedCallback);
+
+      logger.info(`[IAB] Successfully subscribed to topic: ${topic}`, undefined, 'OpenFinWorkspaceProvider');
+
       return () => {
-        fin.InterApplicationBus.unsubscribe({ uuid: '*' }, topic, callback);
+        logger.info(`[IAB] Unsubscribing from topic: ${topic}`, undefined, 'OpenFinWorkspaceProvider');
+        fin.InterApplicationBus.unsubscribe({ uuid: '*' }, topic, wrappedCallback);
       };
     },
     sendToView: async (viewId: string, message: any) => {
