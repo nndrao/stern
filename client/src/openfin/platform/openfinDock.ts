@@ -106,6 +106,17 @@ export async function register(config: {
   try {
     logger.info('Registering dock provider', { id: config.id, title: config.title }, 'dock');
 
+    // Initialize currentTheme from platform's actual theme
+    try {
+      const platform = getCurrentSync();
+      const schemes = await platform.Theme.getSelectedScheme();
+      currentTheme = (schemes as any) === 'dark' ? 'dark' : 'light';
+      logger.info('Initialized theme from platform', { currentTheme }, 'dock');
+    } catch (error) {
+      logger.warn('Could not read platform theme, defaulting to light', error, 'dock');
+      currentTheme = 'light';
+    }
+
     // Store platform settings for reload operations
     platformSettings = {
       id: config.id,
@@ -320,6 +331,16 @@ export async function reload(): Promise<void> {
     }
 
     logger.info('Reloading dock (full deregister/register cycle)', undefined, 'dock');
+
+    // Re-sync theme state from platform before reload
+    try {
+      const platform = getCurrentSync();
+      const schemes = await platform.Theme.getSelectedScheme();
+      currentTheme = (schemes as any) === 'dark' ? 'dark' : 'light';
+      logger.info('Re-synced theme from platform before reload', { currentTheme }, 'dock');
+    } catch (error) {
+      logger.warn('Could not read platform theme during reload', error, 'dock');
+    }
 
     // Store current config
     const configToRestore = { ...currentConfig };
