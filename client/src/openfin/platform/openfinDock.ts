@@ -59,6 +59,11 @@ let platformSettings: {
   icon: string;
 } | undefined;
 
+/**
+ * Current theme state - used for dynamic theme button icon updates
+ */
+let currentTheme: 'light' | 'dark' = 'light';
+
 // ============================================================================
 // Public API
 // ============================================================================
@@ -253,6 +258,48 @@ export async function updateConfig(config: {
   } catch (error) {
     logger.error('Failed to update dock configuration', error, 'dock');
     throw error;
+  }
+}
+
+/**
+ * Update theme button icon dynamically without reloading dock
+ */
+async function updateThemeButtonIcon(): Promise<void> {
+  try {
+    if (!registration || !currentConfig || !platformSettings) {
+      return;
+    }
+
+    const buttons: DockButton[] = [];
+    const existingButtons = currentConfig.buttons || [];
+
+    // Helper to check if button is a system button
+    const isSystemButton = (button: DockButton): boolean => {
+      const action = (button as any).action;
+      const tooltip = (button as any).tooltip;
+      return (action && action.id === 'toggle-theme') || tooltip === 'Tools';
+    };
+
+    // Preserve non-system buttons (Applications, etc.)
+    for (const button of existingButtons) {
+      if (!isSystemButton(button)) {
+        buttons.push(button);
+      }
+    }
+
+    // Add updated system buttons
+    buttons.push(...buildSystemButtons());
+
+    // Update config
+    const newConfig: DockProviderConfig = {
+      ...currentConfig,
+      buttons
+    };
+
+    await registration.updateDockProviderConfig(newConfig);
+    currentConfig = newConfig;
+  } catch (error) {
+    logger.error('Failed to update theme button icon', error, 'dock');
   }
 }
 
@@ -511,6 +558,39 @@ export function dockGetCustomActions(): CustomActionsMap {
     },
 
     /**
+     * Toggle theme between light and dark
+     */
+    'toggle-theme': async (): Promise<void> => {
+      try {
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        currentTheme = newTheme;
+
+        // Fire-and-forget platform theme update
+        import('@openfin/workspace-platform').then(({ getCurrentSync }) => {
+          try {
+            const platform = getCurrentSync();
+            platform.Theme.setSelectedScheme(newTheme as any);
+          } catch (err) {
+            logger.warn('[DOCK] Platform theme update failed', err, 'dock');
+          }
+        }).catch((err) => {
+          logger.warn('[DOCK] Failed to import workspace-platform', err, 'dock');
+        });
+
+        // Broadcast IAB event immediately
+        await fin.InterApplicationBus.publish(
+          OpenFinCustomEvents.THEME_CHANGE,
+          { theme: newTheme }
+        );
+
+        // Update button icon
+        await updateThemeButtonIcon();
+      } catch (error) {
+        logger.error('[DOCK] Failed to toggle theme', error, 'dock');
+      }
+    },
+
+    /**
      * Toggle provider window visibility
      */
     'toggle-provider-window': async (): Promise<void> => {
@@ -550,12 +630,23 @@ export function dockGetCustomActions(): CustomActionsMap {
  * @returns Applications dropdown button
  */
 function buildApplicationsButton(items: DockMenuItem[]): DockButton {
+  logger.info('🔨 Building Applications button', {
+    itemCount: items.length,
+    items: items.map(i => ({ caption: i.caption, hasChildren: !!i.children, childrenCount: i.children?.length || 0 }))
+  }, 'dock');
+
   /**
    * Recursively convert menu items to dropdown options
    * This preserves the nested structure for items with children
    */
-  function convertToDropdownOptions(menuItems: DockMenuItem[]): any[] {
+  function convertToDropdownOptions(menuItems: DockMenuItem[], level: number = 0): any[] {
     return menuItems.map((item) => {
+      logger.debug(`${'  '.repeat(level)}📋 Processing menu item: ${item.caption}`, {
+        hasChildren: !!item.children,
+        childrenCount: item.children?.length || 0,
+        level
+      }, 'dock');
+
       const option: any = {
         tooltip: item.caption,
         iconUrl: item.icon ? buildUrl(item.icon) : buildUrl('/icons/default.svg')
@@ -563,14 +654,19 @@ function buildApplicationsButton(items: DockMenuItem[]): DockButton {
 
       // If item has children, create nested options (submenu)
       if (item.children && item.children.length > 0) {
-        logger.debug(
-          'Creating submenu',
-          { parent: item.caption, childCount: item.children.length },
+        logger.info(
+          `${'  '.repeat(level)}📁 Creating submenu for "${item.caption}"`,
+          { childCount: item.children.length },
           'dock'
         );
-        option.options = convertToDropdownOptions(item.children);
+        option.options = convertToDropdownOptions(item.children, level + 1);
       } else {
         // Leaf item - add action to launch
+        logger.debug(
+          `${'  '.repeat(level)}📄 Creating leaf item "${item.caption}" with launch action`,
+          undefined,
+          'dock'
+        );
         option.action = {
           id: 'launch-component',
           customData: item
@@ -581,14 +677,45 @@ function buildApplicationsButton(items: DockMenuItem[]): DockButton {
     });
   }
 
+  const dropdownOptions = convertToDropdownOptions(items);
+  logger.info('✅ Applications button built successfully', {
+    totalTopLevelItems: items.length,
+    dropdownOptionsCount: dropdownOptions.length
+  }, 'dock');
+
   // Build the Applications dropdown button
   return {
     type: DockButtonNames.DropdownButton,
     tooltip: 'Applications',
     iconUrl: buildUrl('/icons/app.svg'),
-    options: convertToDropdownOptions(items),
+    options: dropdownOptions,
     contextMenu: {
       removeOption: false // Don't allow removing the Applications button
+    }
+  } as DockButton;
+}
+
+/**
+ * Build the theme toggle button with dynamic monochromatic icon
+ */
+function buildThemeButton(): DockButton {
+  const iconUrl = currentTheme === 'dark'
+    ? buildUrl('/icons/sun-icon.svg')
+    : buildUrl('/icons/moon-icon.svg');
+
+  const tooltip = currentTheme === 'dark'
+    ? 'Switch to Light Mode'
+    : 'Switch to Dark Mode';
+
+  return {
+    type: DockButtonNames.CustomButton,
+    tooltip,
+    iconUrl,
+    action: {
+      id: 'toggle-theme'
+    },
+    contextMenu: {
+      removeOption: true
     }
   } as DockButton;
 }
@@ -597,39 +724,14 @@ function buildApplicationsButton(items: DockMenuItem[]): DockButton {
  * Build system buttons (theme, tools, etc.)
  *
  * These are standard utility buttons that appear on every dock.
- * Includes: Theme switcher, Tools dropdown (reload, devtools, provider toggle)
+ * Includes: Theme toggle button, Tools dropdown (reload, devtools, provider toggle)
  *
  * @returns Array of system dock buttons
  */
 function buildSystemButtons(): DockButton[] {
   return [
-    // Theme dropdown
-    {
-      type: DockButtonNames.DropdownButton,
-      tooltip: 'Theme',
-      iconUrl: buildUrl('/icons/theme-switch.svg'),
-      options: [
-        {
-          tooltip: 'Light Theme',
-          iconUrl: buildUrl('/icons/theme-switch.svg'),
-          action: {
-            id: 'set-theme',
-            customData: 'light'
-          }
-        },
-        {
-          tooltip: 'Dark Theme',
-          iconUrl: buildUrl('/icons/theme-switch.svg'),
-          action: {
-            id: 'set-theme',
-            customData: 'dark'
-          }
-        }
-      ],
-      contextMenu: {
-        removeOption: true
-      }
-    } as DockButton,
+    // Theme toggle button
+    buildThemeButton(),
 
     // Tools dropdown
     {

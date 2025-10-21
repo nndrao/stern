@@ -8,11 +8,13 @@ import { devtools } from 'zustand/middleware';
 import {
   DockMenuItem,
   DockConfiguration,
+  DockApplicationsMenuItemsConfig,
   createMenuItem,
   createDockConfiguration,
 } from '@/openfin/types/dockConfig';
 import { dockConfigService } from '@/services/dockConfigService';
 import { logger } from '@/utils/logger';
+import { COMPONENT_SUBTYPES } from '@stern/shared-types';
 
 interface HistoryState {
   past: DockConfiguration[];
@@ -161,33 +163,31 @@ export const useDockConfigStore = create<DockConfigStore>()(
       });
 
       try {
-        logger.info('Loading dock configuration', { userId }, 'dockConfigStore');
-        const configs = await dockConfigService.loadByUser(userId);
-        logger.info('Loaded configs from API', { count: configs.length }, 'dockConfigStore');
+        logger.info('Loading dock applications menu items configuration', { userId }, 'dockConfigStore');
+        const config = await dockConfigService.loadApplicationsMenuItems(userId);
 
-        if (configs.length > 0) {
-          const config = configs[0];
-          logger.info('Using first config', {
+        if (config && config.config?.menuItems && config.config.menuItems.length > 0) {
+          logger.info('Loaded DockApplicationsMenuItems config', {
             configId: config.configId,
             name: config.name,
-            menuItemsCount: config.config?.menuItems?.length
+            menuItemsCount: config.config.menuItems.length
           }, 'dockConfigStore');
-          logger.debug('Config menu items', config.config?.menuItems, 'dockConfigStore');
-
-          // Ensure menuItems array exists
-          const loadedConfig = configs[0];
-          if (!loadedConfig.config.menuItems) {
-            loadedConfig.config.menuItems = [];
-            logger.warn('menuItems was undefined, initialized to empty array', undefined, 'dockConfigStore');
-          }
+          logger.debug('Config menu items with children',
+            config.config.menuItems.map(item => ({
+              caption: item.caption,
+              hasChildren: !!item.children,
+              childrenCount: item.children?.length || 0
+            })),
+            'dockConfigStore'
+          );
 
           set({
-            currentConfig: loadedConfig,
+            currentConfig: config as DockConfiguration,
             isDirty: false,
             isLoading: false
           });
         } else {
-          logger.warn('No configs found, creating new one', undefined, 'dockConfigStore');
+          logger.warn('No DockApplicationsMenuItems config found, creating new one', undefined, 'dockConfigStore');
           // Create new config if none exists
           const newConfig = createDockConfiguration(userId, 'stern-platform') as DockConfiguration;
           logger.debug('New config created', newConfig, 'dockConfigStore');
@@ -242,7 +242,8 @@ export const useDockConfigStore = create<DockConfigStore>()(
             isShared: currentConfig.isShared,
             isDefault: currentConfig.isDefault,
             isLocked: currentConfig.isLocked,
-            lastUpdatedBy: currentConfig.lastUpdatedBy
+            lastUpdatedBy: currentConfig.lastUpdatedBy,
+            componentSubType: COMPONENT_SUBTYPES.DOCK_APPLICATIONS_MENU_ITEMS
           };
 
           logger.info('Updating existing config', {
@@ -262,7 +263,8 @@ export const useDockConfigStore = create<DockConfigStore>()(
           // For new configs, send the full config
           const configToSave = {
             ...currentConfig,
-            activeSetting: currentConfig.activeSetting || ''
+            activeSetting: currentConfig.activeSetting || '',
+            componentSubType: COMPONENT_SUBTYPES.DOCK_APPLICATIONS_MENU_ITEMS
           };
 
           logger.info('Saving new config', undefined, 'dockConfigStore');

@@ -168,12 +168,14 @@ export default function Provider() {
               const userId = 'default-user'; // TODO: Get from auth service
               const menuItemsConfig = await dockConfigService.loadApplicationsMenuItems(userId);
 
-              if (menuItemsConfig && menuItemsConfig.config?.menuItems) {
-                logger.info('Loaded DockApplicationsMenuItems config', {
+              if (menuItemsConfig && menuItemsConfig.config?.menuItems && menuItemsConfig.config.menuItems.length > 0) {
+                // User has saved menu items in the database - use those
+                logger.info('✅ Loaded DockApplicationsMenuItems config from database', {
                   configId: menuItemsConfig.configId,
                   name: menuItemsConfig.name,
                   menuItemsCount: menuItemsConfig.config.menuItems.length
                 }, 'Provider');
+                logger.info('📋 Using menu items configured via Dock Configuration screen', undefined, 'Provider');
 
                 // Convert DockApplicationsMenuItemsConfig to DockConfiguration for backwards compatibility
                 const dockConfig = {
@@ -185,7 +187,7 @@ export default function Provider() {
                 // Register dock with saved configuration (suppress analytics errors)
                 try {
                   await dock.registerFromConfig(dockConfig);
-                  logger.info('Dock registered with DockApplicationsMenuItems configuration', undefined, 'Provider');
+                  logger.info('Dock registered with user-configured menu items', undefined, 'Provider');
                 } catch (dockError: any) {
                   if (dockError?.message?.includes('system topic payload')) {
                     logger.warn('Dock registered successfully (analytics error suppressed)', undefined, 'Provider');
@@ -194,16 +196,40 @@ export default function Provider() {
                   }
                 }
               } else {
-                logger.info('No DockApplicationsMenuItems configuration found, using default', undefined, 'Provider');
-                // Fallback to empty dock with system buttons (suppress analytics errors)
+                logger.info('No DockApplicationsMenuItems configuration found in database', undefined, 'Provider');
+                logger.info('Fallback: Using apps from manifest.customSettings.apps', undefined, 'Provider');
+
+                // Convert manifest apps to dock menu items
+                const appsFromManifest = apps.map((app: any, index: number) => ({
+                  id: app.appId || `app-${index}`,
+                  caption: app.title || app.name,
+                  url: app.url || app.manifest,
+                  icon: app.icons?.[0]?.src || buildUrl('/icons/app.svg'),
+                  openMode: (app.manifestType === 'view' ? 'view' : 'window') as 'window' | 'view',
+                  order: index,
+                  windowOptions: {
+                    autoShow: true,
+                    defaultWidth: 1200,
+                    defaultHeight: 800
+                  }
+                }));
+
+                logger.info('Converted manifest apps to menu items', {
+                  appsCount: apps.length,
+                  menuItems: appsFromManifest
+                }, 'Provider');
+
+                // Register dock with manifest apps as menu items
                 try {
                   await dock.register({
                     id: settings.platformSettings.id,
                     title: settings.platformSettings.title,
                     icon: settings.platformSettings.icon,
-                    menuItems: []
+                    menuItems: appsFromManifest
                   });
-                  logger.info('Dock registered with default configuration', undefined, 'Provider');
+                  logger.info('Dock registered with manifest apps', {
+                    menuItemsCount: appsFromManifest.length
+                  }, 'Provider');
                 } catch (dockError: any) {
                   if (dockError?.message?.includes('system topic payload')) {
                     logger.warn('Dock registered successfully (analytics error suppressed)', undefined, 'Provider');
@@ -213,15 +239,33 @@ export default function Provider() {
                 }
               }
             } catch (apiError) {
-              logger.warn('Failed to load dock config from API, using default', apiError, 'Provider');
-              // Fallback to empty dock (suppress analytics errors)
+              logger.warn('Failed to load dock config from API, using manifest apps as fallback', apiError, 'Provider');
+
+              // Fallback to manifest apps
+              const appsFromManifest = apps.map((app: any, index: number) => ({
+                id: app.appId || `app-${index}`,
+                caption: app.title || app.name,
+                url: app.url || app.manifest,
+                icon: app.icons?.[0]?.src || buildUrl('/icons/app.svg'),
+                openMode: (app.manifestType === 'view' ? 'view' : 'window') as 'window' | 'view',
+                order: index,
+                windowOptions: {
+                  autoShow: true,
+                  defaultWidth: 1200,
+                  defaultHeight: 800
+                }
+              }));
+
               try {
                 await dock.register({
                   id: settings.platformSettings.id,
                   title: settings.platformSettings.title,
                   icon: settings.platformSettings.icon,
-                  menuItems: []
+                  menuItems: appsFromManifest
                 });
+                logger.info('Dock registered with manifest apps (API error fallback)', {
+                  menuItemsCount: appsFromManifest.length
+                }, 'Provider');
               } catch (dockError: any) {
                 if (dockError?.message?.includes('system topic payload')) {
                   logger.warn('Dock registered successfully (analytics error suppressed)', undefined, 'Provider');
