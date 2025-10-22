@@ -183,17 +183,25 @@ export async function registerFromConfig(
   config: DockConfiguration,
   platformIcon?: string
 ): Promise<DockProviderRegistration | undefined> {
-  // Use platform icon if config.icon is undefined or is the OpenFin default
-  // This allows the dock to use the platform's dock-icon.svg instead of OpenFin default
+  // Dock provider icon MUST be PNG/ICO format (SVG doesn't work for taskbar icon)
+  // However, SVG works fine for regular windows (like provider window)
+  // Detect if platformIcon is SVG and use PNG fallback for dock
   const isOpenFinDefault = config.icon?.includes('cdn.openfin.co/workspace');
-  const finalIcon = (config.icon && !isOpenFinDefault) ? config.icon : (platformIcon || buildUrl('/dock-icon.svg'));
+  const isSvgIcon = platformIcon?.endsWith('.svg');
+
+  // Prioritize config.icon (if not OpenFin default), then use PNG fallback if platformIcon is SVG
+  const finalIcon = (config.icon && !isOpenFinDefault)
+    ? config.icon
+    : (isSvgIcon ? buildUrl('/star.png') : (platformIcon || buildUrl('/star.png')));
 
   logger.info('[DOCK_ICON] registerFromConfig icon resolution:', {
     'config.icon': config.icon,
     'isOpenFinDefault': isOpenFinDefault,
     'platformIcon': platformIcon,
-    'fallback': buildUrl('/dock-icon.svg'),
-    'finalIcon': finalIcon
+    'isSvgIcon': isSvgIcon,
+    'pngFallback': buildUrl('/star.png'),
+    'finalIcon': finalIcon,
+    'note': isSvgIcon ? 'SVG detected - using PNG fallback for dock' : 'Using provided icon'
   }, 'dock');
 
   const registerConfig = {

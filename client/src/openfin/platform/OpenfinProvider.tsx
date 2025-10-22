@@ -59,9 +59,10 @@ export default function Provider() {
       // Initialize base URL from manifest if available
       await initializeBaseUrlFromManifest();
 
-      // Testing SVG icon support (research shows SVG works despite documentation stating otherwise)
-      // Using dock-icon.svg (32x32, 2.5KB - optimized SVG for dock/taskbar)
-      const iconUrl = manifest.platform?.icon || buildUrl("/dock-icon.svg");
+      // Platform icon: Use SVG for windows (provider, apps) - works fine with SVG
+      // Note: Dock provider taskbar icon requires PNG/ICO - handled in openfinDock.ts
+      // star.svg (2.5KB) works for regular windows, dock will auto-convert to star.png
+      const iconUrl = manifest.platform?.icon || buildUrl("/star.svg");
       logger.info(`[DOCK_ICON] Platform icon URL: "${iconUrl}"`, undefined, 'Provider');
 
       return {
@@ -79,7 +80,7 @@ export default function Provider() {
         platformSettings: {
           id: "stern-platform",
           title: "Stern Trading Platform",
-          icon: buildUrl("/dock-icon.svg")  // Use optimized 32x32 SVG for dock/taskbar
+          icon: buildUrl("/star.svg")  // SVG for windows (dock converts to PNG automatically)
         },
         customSettings: { apps: [] }
       };
