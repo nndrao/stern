@@ -184,15 +184,15 @@ export async function registerFromConfig(
   platformIcon?: string
 ): Promise<DockProviderRegistration | undefined> {
   // Use platform icon if config.icon is undefined or is the OpenFin default
-  // This allows the dock to use the platform's dock-icon.png instead of OpenFin default
+  // This allows the dock to use the platform's dock-icon.svg instead of OpenFin default
   const isOpenFinDefault = config.icon?.includes('cdn.openfin.co/workspace');
-  const finalIcon = (config.icon && !isOpenFinDefault) ? config.icon : (platformIcon || buildUrl('/dock-icon.png'));
+  const finalIcon = (config.icon && !isOpenFinDefault) ? config.icon : (platformIcon || buildUrl('/dock-icon.svg'));
 
   logger.info('[DOCK_ICON] registerFromConfig icon resolution:', {
     'config.icon': config.icon,
     'isOpenFinDefault': isOpenFinDefault,
     'platformIcon': platformIcon,
-    'fallback': buildUrl('/dock-icon.png'),
+    'fallback': buildUrl('/dock-icon.svg'),
     'finalIcon': finalIcon
   }, 'dock');
 

@@ -7,7 +7,7 @@
   },
   "platform": {
     "uuid": "stern-platform",
-    "icon": "http://localhost:5173/dock-icon.png",
+    "icon": "http://localhost:5173/dock-icon.svg",
     "autoShow": false,
     "providerUrl": "http://localhost:5173/platform/provider",
     "preventQuitOnLastWindowClosed": true
