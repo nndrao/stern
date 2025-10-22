@@ -273,13 +273,16 @@ export async function updateConfig(config: {
 }
 
 /**
- * Update theme button icon dynamically without reloading dock
+ * Update ALL dock button icons dynamically when theme changes
+ * This rebuilds all buttons with theme-appropriate icons without reloading the dock
  */
-async function updateThemeButtonIcon(): Promise<void> {
+async function updateAllDockIcons(): Promise<void> {
   try {
     if (!registration || !currentConfig || !platformSettings) {
       return;
     }
+
+    logger.info(`Updating all dock icons for ${currentTheme} theme`, undefined, 'dock');
 
     const buttons: DockButton[] = [];
     const existingButtons = currentConfig.buttons || [];
@@ -288,17 +291,34 @@ async function updateThemeButtonIcon(): Promise<void> {
     const isSystemButton = (button: DockButton): boolean => {
       const action = (button as any).action;
       const tooltip = (button as any).tooltip;
+      // System buttons are: theme toggle and Tools dropdown
       return (action && action.id === 'toggle-theme') || tooltip === 'Tools';
     };
 
-    // Preserve non-system buttons (Applications, etc.)
+    // Preserve and rebuild non-system buttons (Applications button)
+    // Applications button needs to be rebuilt to update its icon too
     for (const button of existingButtons) {
-      if (!isSystemButton(button)) {
+      if (!isSystemButton(button) && (button as any).tooltip === 'Applications') {
+        // Skip - will rebuild with new icon below
+        continue;
+      } else if (!isSystemButton(button)) {
         buttons.push(button);
       }
     }
 
-    // Add updated system buttons
+    // Rebuild Applications button with menu items from config
+    // We need to extract menu items from somewhere - they should be stored
+    // For now, preserve existing Applications button structure but update icon
+    for (const button of existingButtons) {
+      if ((button as any).tooltip === 'Applications') {
+        buttons.push({
+          ...button,
+          iconUrl: getThemedIcon('app')
+        } as DockButton);
+      }
+    }
+
+    // Add updated system buttons (theme + tools)
     buttons.push(...buildSystemButtons());
 
     // Update config
@@ -309,8 +329,10 @@ async function updateThemeButtonIcon(): Promise<void> {
 
     await registration.updateDockProviderConfig(newConfig);
     currentConfig = newConfig;
+
+    logger.info('✅ All dock icons updated successfully', undefined, 'dock');
   } catch (error) {
-    logger.error('Failed to update theme button icon', error, 'dock');
+    logger.error('Failed to update dock icons', error, 'dock');
   }
 }
 
@@ -604,8 +626,8 @@ export function dockGetCustomActions(): CustomActionsMap {
           { theme: newTheme }
         );
 
-        // Update button icon
-        await updateThemeButtonIcon();
+        // Update all dock button icons for new theme
+        await updateAllDockIcons();
       } catch (error) {
         logger.error('[DOCK] Failed to toggle theme', error, 'dock');
       }
@@ -639,6 +661,16 @@ export function dockGetCustomActions(): CustomActionsMap {
 // ============================================================================
 
 /**
+ * Get themed icon path based on current theme
+ * Returns different icons for light vs dark mode for better visibility
+ * @param baseName - Icon base name (e.g., 'app', 'tools', 'reload')
+ * @returns Full icon path with theme suffix
+ */
+function getThemedIcon(baseName: string): string {
+  return buildUrl(`/icons/${baseName}-${currentTheme}.svg`);
+}
+
+/**
  * Build the Applications dropdown button containing all menu items
  *
  * This creates a single "Applications" dropdown button that contains all
@@ -670,7 +702,7 @@ function buildApplicationsButton(items: DockMenuItem[]): DockButton {
 
       const option: any = {
         tooltip: item.caption,
-        iconUrl: item.icon ? buildUrl(item.icon) : buildUrl('/icons/default.svg')
+        iconUrl: item.icon ? buildUrl(item.icon) : getThemedIcon('default')
       };
 
       // If item has children, create nested options (submenu)
@@ -708,7 +740,7 @@ function buildApplicationsButton(items: DockMenuItem[]): DockButton {
   return {
     type: DockButtonNames.DropdownButton,
     tooltip: 'Applications',
-    iconUrl: buildUrl('/icons/app.svg'),
+    iconUrl: getThemedIcon('app'),
     options: dropdownOptions,
     contextMenu: {
       removeOption: false // Don't allow removing the Applications button
@@ -717,12 +749,15 @@ function buildApplicationsButton(items: DockMenuItem[]): DockButton {
 }
 
 /**
- * Build the theme toggle button with dynamic monochromatic icon
+ * Build the theme toggle button with dynamic themed icon
+ * Icon shows the theme you can SWITCH TO (not current theme)
  */
 function buildThemeButton(): DockButton {
-  const iconUrl = currentTheme === 'dark'
-    ? buildUrl('/icons/sun-icon.svg')
-    : buildUrl('/icons/moon-icon.svg');
+  // Icon shows what you'll switch TO
+  // Dark mode active -> show sun (will switch to light)
+  // Light mode active -> show moon (will switch to dark)
+  const iconBaseName = currentTheme === 'dark' ? 'sun' : 'moon';
+  const iconUrl = getThemedIcon(iconBaseName);
 
   const tooltip = currentTheme === 'dark'
     ? 'Switch to Light Mode'
@@ -758,25 +793,25 @@ function buildSystemButtons(): DockButton[] {
     {
       type: DockButtonNames.DropdownButton,
       tooltip: 'Tools',
-      iconUrl: buildUrl('/icons/tools.svg'),
+      iconUrl: getThemedIcon('tools'),
       options: [
         {
           tooltip: 'Reload Dock',
-          iconUrl: buildUrl('/icons/reload.svg'),
+          iconUrl: getThemedIcon('reload'),
           action: {
             id: 'reload-dock'
           }
         },
         {
           tooltip: 'Show Dock Developer Tools',
-          iconUrl: buildUrl('/icons/dev-tools.svg'),
+          iconUrl: getThemedIcon('dev-tools'),
           action: {
             id: 'show-dock-devtools'
           }
         },
         {
           tooltip: 'Toggle Provider Window',
-          iconUrl: buildUrl('/icons/provider-window.svg'),
+          iconUrl: getThemedIcon('provider-window'),
           action: {
             id: 'toggle-provider-window'
           }
