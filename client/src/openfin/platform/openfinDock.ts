@@ -150,10 +150,22 @@ export async function register(config: {
       buttons
     };
 
+    logger.info(`[DOCK_ICON] Dock icon URL: "${currentConfig.icon}"`, undefined, 'dock');
+    logger.info('[DOCK_ICON] Dock configuration before registration', {
+      id: currentConfig.id,
+      title: currentConfig.title,
+      icon: currentConfig.icon,
+      buttonCount: buttons.length
+    }, 'dock');
+
     // Register with OpenFin
     registration = await Dock.register(currentConfig);
 
-    logger.info('Dock registered successfully', { buttonCount: buttons.length }, 'dock');
+    logger.info('[DOCK_ICON] Dock registered successfully - OpenFin Dock.register() completed', {
+      providedIcon: config.icon,
+      buttonCount: buttons.length,
+      registrationId: registration?.id
+    }, 'dock');
     return registration;
   } catch (error) {
     logger.error('Failed to register dock', error, 'dock');
@@ -168,12 +180,26 @@ export async function register(config: {
  * @returns Registration info if successful
  */
 export async function registerFromConfig(
-  config: DockConfiguration
+  config: DockConfiguration,
+  platformIcon?: string
 ): Promise<DockProviderRegistration | undefined> {
+  // Use platform icon if config.icon is undefined or is the OpenFin default
+  // This allows the dock to use the platform's dock-icon.png instead of OpenFin default
+  const isOpenFinDefault = config.icon?.includes('cdn.openfin.co/workspace');
+  const finalIcon = (config.icon && !isOpenFinDefault) ? config.icon : (platformIcon || buildUrl('/dock-icon.png'));
+
+  logger.info('[DOCK_ICON] registerFromConfig icon resolution:', {
+    'config.icon': config.icon,
+    'isOpenFinDefault': isOpenFinDefault,
+    'platformIcon': platformIcon,
+    'fallback': buildUrl('/dock-icon.png'),
+    'finalIcon': finalIcon
+  }, 'dock');
+
   const registerConfig = {
     id: config.configId,
     title: config.name,
-    icon: config.icon || buildUrl('/icons/dock.svg'),
+    icon: finalIcon,  // Use platform icon if available
     menuItems: config.config.menuItems,
     workspaceComponents: {
       hideWorkspacesButton: false,

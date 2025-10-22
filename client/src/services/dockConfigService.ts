@@ -30,7 +30,8 @@ export const dockConfigService = {
     // Clean the config before saving
     const cleanedConfig = {
       ...config,
-      icon: config.icon || 'https://cdn.openfin.co/workspace/19.0.11/icons/defaultFavorite.svg',
+      // Don't set a default icon - let it fall back to platform icon during registration
+      icon: config.icon || undefined,
       description: config.description || '',
       componentType: COMPONENT_TYPES.DOCK,
       config: {
@@ -104,7 +105,8 @@ export const dockConfigService = {
     // Set defaults for optional fields that server validation might require
     const cleanedData = {
       ...updateData,
-      icon: updateData.icon || 'https://cdn.openfin.co/workspace/19.0.11/icons/defaultFavorite.svg',
+      // Don't set a default icon - let it fall back to platform icon during registration
+      icon: updateData.icon || undefined,
       description: updateData.description || '',
       componentType: COMPONENT_TYPES.DOCK,
       lastUpdatedBy: updates.lastUpdatedBy || updates.userId || 'unknown'

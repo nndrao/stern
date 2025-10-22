@@ -59,11 +59,17 @@ export default function Provider() {
       // Initialize base URL from manifest if available
       await initializeBaseUrlFromManifest();
 
+      // Ensure icon URL is absolute and uses raster format (PNG/ICO not SVG)
+      // OpenFin Dock requires raster image format - SVG is not supported
+      // Using dock-icon.png (32x32, 1.7KB - optimized for dock/taskbar)
+      const iconUrl = manifest.platform?.icon || buildUrl("/dock-icon.png");
+      logger.info(`[DOCK_ICON] Platform icon URL: "${iconUrl}"`, undefined, 'Provider');
+
       return {
         platformSettings: {
           id: manifest.platform?.uuid || "stern-platform",
           title: manifest.shortcut?.name || "Stern Trading Platform",
-          icon: manifest.platform?.icon || buildUrl("/stern.svg")
+          icon: iconUrl
         },
         customSettings: manifest.customSettings || { apps: [] }
       };
@@ -74,7 +80,7 @@ export default function Provider() {
         platformSettings: {
           id: "stern-platform",
           title: "Stern Trading Platform",
-          icon: buildUrl("/stern.svg")
+          icon: buildUrl("/dock-icon.png")  // Use optimized 32x32 PNG - OpenFin Dock requires raster format
         },
         customSettings: { apps: [] }
       };
@@ -186,7 +192,7 @@ export default function Provider() {
 
                 // Register dock with saved configuration (suppress analytics errors)
                 try {
-                  await dock.registerFromConfig(dockConfig);
+                  await dock.registerFromConfig(dockConfig, settings.platformSettings.icon);
                   logger.info('Dock registered with user-configured menu items', undefined, 'Provider');
                 } catch (dockError: any) {
                   if (dockError?.message?.includes('system topic payload')) {

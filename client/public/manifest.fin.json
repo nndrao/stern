@@ -7,7 +7,7 @@
   },
   "platform": {
     "uuid": "stern-platform",
-    "icon": "http://localhost:5173/stern.svg",
+    "icon": "http://localhost:5173/dock-icon.png",
     "autoShow": false,
     "providerUrl": "http://localhost:5173/platform/provider",
     "preventQuitOnLastWindowClosed": true
@@ -24,7 +24,7 @@
   "shortcut": {
     "company": "Stern Trading",
     "description": "Stern Trading Platform",
-    "icon": "http://localhost:5173/stern.svg",
+    "icon": "http://localhost:5173/stern.png",
     "name": "Stern Trading Platform",
     "target": ["desktop", "start-menu"]
   },
@@ -43,7 +43,7 @@
         "description": "Main trading blotter",
         "url": "http://localhost:5173/",
         "manifestType": "view",
-        "icons": [{ "src": "http://localhost:5173/stern.svg" }],
+        "icons": [{ "src": "http://localhost:5173/stern.png" }],
         "tags": ["trading", "blotter"]
       }
     ]
