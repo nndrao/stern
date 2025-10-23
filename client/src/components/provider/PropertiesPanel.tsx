@@ -12,10 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { buildUrl } from '@/openfin-utils';
+import { buildUrl } from '@/openfin/utils';
 import { RefreshCw, Image } from 'lucide-react';
 
-import { DockMenuItem, DEFAULT_WINDOW_OPTIONS, DEFAULT_VIEW_OPTIONS } from '@/types/dockConfig';
+import { DockMenuItem, DEFAULT_WINDOW_OPTIONS, DEFAULT_VIEW_OPTIONS } from '@/openfin/types/dockConfig';
 
 interface PropertiesPanelProps {
   item: DockMenuItem;

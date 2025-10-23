@@ -1,5 +1,5 @@
 import Joi from 'joi';
-import { UnifiedConfig, ConfigurationFilter, COMPONENT_TYPES, COMPONENT_SUBTYPES } from '../types/configuration';
+import { UnifiedConfig, ConfigurationFilter } from '../types/configuration';
 
 // Validation schemas using Joi
 // Updated to allow empty activeSetting when no versions exist
@@ -19,8 +19,8 @@ export const unifiedConfigSchema = Joi.object({
   configId: Joi.string().uuid().required(),
   appId: Joi.string().min(1).max(100).required(),
   userId: Joi.string().min(1).max(100).required(),
-  componentType: Joi.string().valid(...Object.values(COMPONENT_TYPES)).required(),
-  componentSubType: Joi.string().valid(...Object.values(COMPONENT_SUBTYPES)).optional(),
+  componentType: Joi.string().min(1).max(100).required(), // Accept any component type
+  componentSubType: Joi.string().min(1).max(100).optional(), // Accept any component subtype
   name: Joi.string().min(1).max(200).required(),
   description: Joi.string().max(1000).optional(),
   icon: Joi.string().max(200).optional(),
@@ -52,8 +52,8 @@ export const createConfigSchema = unifiedConfigSchema.fork(
 export const updateConfigSchema = Joi.object({
   appId: Joi.string().min(1).max(100).optional(),
   userId: Joi.string().min(1).max(100).optional(),
-  componentType: Joi.string().valid(...Object.values(COMPONENT_TYPES)).optional(),
-  componentSubType: Joi.string().valid(...Object.values(COMPONENT_SUBTYPES)).optional(),
+  componentType: Joi.string().min(1).max(100).optional(), // Accept any component type
+  componentSubType: Joi.string().min(1).max(100).optional(), // Accept any component subtype
   name: Joi.string().min(1).max(200).optional(),
   description: Joi.string().max(1000).allow('').optional(),
   icon: Joi.string().max(200).allow('').optional(),
@@ -76,8 +76,8 @@ export const configurationFilterSchema = Joi.object({
   configIds: Joi.array().items(Joi.string().uuid()).optional(),
   appIds: Joi.array().items(Joi.string()).optional(),
   userIds: Joi.array().items(Joi.string()).optional(),
-  componentTypes: Joi.array().items(Joi.string().valid(...Object.values(COMPONENT_TYPES))).optional(),
-  componentSubTypes: Joi.array().items(Joi.string().valid(...Object.values(COMPONENT_SUBTYPES))).optional(),
+  componentTypes: Joi.array().items(Joi.string()).optional(), // Accept any component types
+  componentSubTypes: Joi.array().items(Joi.string()).optional(), // Accept any component subtypes
   nameContains: Joi.string().max(200).optional(),
   descriptionContains: Joi.string().max(200).optional(),
   tags: Joi.array().items(Joi.string().max(50)).optional(),

@@ -121,20 +121,28 @@ export interface CleanupResult {
 // Component type constants
 export const COMPONENT_TYPES = {
   DATASOURCE: 'datasource',
+  DATA_PROVIDER: 'DataProvider',  // For data provider configurations
   GRID: 'grid',
   DATA_GRID: 'data-grid',
   PROFILE: 'profile',
   WORKSPACE: 'workspace',
   THEME: 'theme',
   LAYOUT: 'layout',
-  DOCK: 'dock'
+  DOCK: 'Dock'  // For dock configurations
 } as const;
 
 export const COMPONENT_SUBTYPES = {
-  STOMP: 'stomp',
-  WEBSOCKET: 'websocket',
-  SOCKETIO: 'socketio',
-  REST: 'rest',
+  // Data Provider subtypes
+  STOMP: 'Stomp',
+  WEBSOCKET: 'WebSocket',
+  SOCKETIO: 'SocketIO',
+  REST: 'Rest',
+  MOCK: 'Mock',
+
+  // Dock subtypes
+  DOCK_APPLICATIONS_MENU_ITEMS: 'DockApplicationsMenuItems',  // Singleton for dock menu items
+
+  // Generic subtypes
   DEFAULT: 'default',
   CUSTOM: 'custom',
   SHARED: 'shared',

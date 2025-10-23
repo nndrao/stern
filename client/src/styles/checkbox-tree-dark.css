@@ -1,0 +1,181 @@
+/**
+ * Dark Theme for react-checkbox-tree
+ * Matches Stern Platform dark UI (#1a1a1a background)
+ */
+
+.react-checkbox-tree {
+  font-size: 14px;
+  color: #e5e7eb;
+}
+
+/* Remove default focus outlines, we'll use our own */
+.react-checkbox-tree *:focus {
+  outline: none;
+}
+
+/* Expandable/collapsible button */
+.react-checkbox-tree button.rct-collapse,
+.react-checkbox-tree button.rct-expand {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0 4px;
+  margin-right: 4px;
+  color: #9ca3af;
+  transition: color 0.2s;
+}
+
+.react-checkbox-tree button.rct-collapse:hover,
+.react-checkbox-tree button.rct-expand:hover {
+  color: #e5e7eb;
+}
+
+/* Hide default Font Awesome icons, we'll use Lucide */
+.react-checkbox-tree .rct-icon {
+  display: none;
+}
+
+/* Node container */
+.react-checkbox-tree ol {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.react-checkbox-tree ol ol {
+  padding-left: 24px;
+}
+
+.react-checkbox-tree li {
+  margin: 0;
+  padding: 2px 0;
+}
+
+/* Node label */
+.react-checkbox-tree label {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background-color 0.15s;
+  user-select: none;
+}
+
+.react-checkbox-tree label:hover {
+  background-color: #2a2a2a;
+}
+
+.react-checkbox-tree label:active {
+  background-color: #3a3a3a;
+}
+
+/* Checkbox styling to match shadcn/ui */
+.react-checkbox-tree input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid hsl(var(--border, #3a3a3a));
+  border-radius: 4px;
+  background-color: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.react-checkbox-tree input[type="checkbox"]:hover {
+  border-color: hsl(var(--primary, #e5e7eb));
+}
+
+.react-checkbox-tree input[type="checkbox"]:focus-visible {
+  outline: 2px solid hsl(var(--ring, #3a3a3a));
+  outline-offset: 2px;
+}
+
+/* Checked state */
+.react-checkbox-tree input[type="checkbox"]:checked {
+  background-color: hsl(var(--primary, #e5e7eb));
+  border-color: hsl(var(--primary, #e5e7eb));
+}
+
+.react-checkbox-tree input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid hsl(var(--primary-foreground, #1a1a1a));
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Indeterminate state (partial selection) */
+.react-checkbox-tree input[type="checkbox"]:indeterminate {
+  background-color: hsl(var(--primary, #e5e7eb));
+  border-color: hsl(var(--primary, #e5e7eb));
+}
+
+.react-checkbox-tree input[type="checkbox"]:indeterminate::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 6px;
+  width: 8px;
+  height: 2px;
+  background-color: hsl(var(--primary-foreground, #1a1a1a));
+}
+
+/* Disabled state */
+.react-checkbox-tree input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.react-checkbox-tree label.rct-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Node title text */
+.react-checkbox-tree .rct-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+/* Parent/group nodes (bold) */
+.react-checkbox-tree .rct-node-parent > label .rct-title {
+  font-weight: 600;
+}
+
+/* Leaf nodes (normal weight) */
+.react-checkbox-tree .rct-node-leaf > label .rct-title {
+  font-weight: 400;
+}
+
+/* Collapse/expand icons (we'll render Lucide icons via React) */
+.rct-collapse-btn,
+.rct-expand-btn {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Focus ring for keyboard navigation */
+.react-checkbox-tree label:focus-within {
+  outline: 2px solid hsl(var(--ring, #3a3a3a));
+  outline-offset: 2px;
+}
+
+/* Transitions */
+.react-checkbox-tree * {
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}

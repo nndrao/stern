@@ -1,0 +1,392 @@
+/**
+ * Dock Configuration Types
+ * Defines the structure for runtime dock configuration
+ */
+
+import { UnifiedConfig, ConfigVersion, COMPONENT_TYPES, COMPONENT_SUBTYPES } from '@stern/shared-types';
+
+/**
+ * Represents a single menu item in the dock
+ */
+export interface DockMenuItem {
+  id: string;                           // Unique identifier (auto-generated or user-provided)
+  caption: string;                      // Display text for the menu item
+  url: string;                          // Component path (e.g., '/data-grid', '/watchlist')
+  openMode: 'window' | 'view';         // How to open the component
+  icon?: string;                        // Icon path or identifier
+  children?: DockMenuItem[];            // Nested submenu items
+  order: number;                        // Sort order within parent
+  metadata?: Record<string, any>;       // Additional custom data
+
+  // OpenFin-specific options
+  windowOptions?: {
+    width?: number;
+    height?: number;
+    minWidth?: number;
+    minHeight?: number;
+    maxWidth?: number;
+    maxHeight?: number;
+    resizable?: boolean;
+    maximizable?: boolean;
+    minimizable?: boolean;
+    center?: boolean;
+    alwaysOnTop?: boolean;
+    frame?: boolean;
+    contextMenu?: boolean;
+    accelerator?: {
+      zoom?: boolean;
+      reload?: boolean;
+      devtools?: boolean;
+    };
+  };
+
+  viewOptions?: {
+    bounds?: {
+      x?: number;
+      y?: number;
+      width?: number;
+      height?: number;
+    };
+    customData?: any;
+  };
+}
+
+/**
+ * Dock Applications Menu Items Configuration (Singleton)
+ * This is the ONLY configuration that should contain dock menu items
+ * componentType: 'Dock'
+ * componentSubType: 'DockApplicationsMenuItems'
+ */
+export interface DockApplicationsMenuItemsConfig extends Omit<UnifiedConfig, 'componentType' | 'componentSubType' | 'config'> {
+  componentType: 'Dock';
+  componentSubType: 'DockApplicationsMenuItems';
+
+  config: {
+    menuItems: DockMenuItem[];
+  };
+
+  // Version history for dock layouts
+  settings: ConfigVersion[];
+  activeSetting: string;
+}
+
+/**
+ * Complete dock configuration extending UnifiedConfig
+ * @deprecated Use DockApplicationsMenuItemsConfig instead for menu items
+ */
+export interface DockConfiguration extends Omit<UnifiedConfig, 'componentType' | 'config'> {
+  componentType: 'dock';
+  componentSubType?: 'default' | 'custom' | 'shared';
+
+  config: {
+    menuItems: DockMenuItem[];
+    theme?: 'light' | 'dark' | 'auto';
+    position?: 'left' | 'right' | 'top' | 'bottom';
+    autoHide?: boolean;
+    buttons?: DockButton[];  // Generated from menuItems
+  };
+
+  // Version history for dock layouts
+  settings: ConfigVersion[];
+  activeSetting: string;
+}
+
+/**
+ * OpenFin Dock Button structure
+ */
+export interface DockButton {
+  type: 'CustomButton' | 'DropdownButton';
+  id: string;
+  tooltip: string;
+  iconUrl: string;
+  action?: {
+    id: string;
+    customData?: any;
+  };
+  options?: DockButtonOption[];
+}
+
+/**
+ * Dropdown button option
+ */
+export interface DockButtonOption {
+  tooltip: string;
+  iconUrl: string;
+  action: {
+    id: string;
+    customData?: any;
+  };
+}
+
+/**
+ * Tree node for tree view component
+ */
+export interface TreeNode extends DockMenuItem {
+  expanded?: boolean;
+  selected?: boolean;
+  parentId?: string;
+  level?: number;
+}
+
+/**
+ * Dock configuration filter for queries
+ */
+export interface DockConfigFilter {
+  userId?: string;
+  appId?: string;
+  name?: string;
+  isShared?: boolean;
+  isDefault?: boolean;
+  includeDeleted?: boolean;
+}
+
+/**
+ * Validation result
+ */
+export interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationError[];
+}
+
+/**
+ * Validation error
+ */
+export interface ValidationError {
+  field: string;
+  message: string;
+  value?: any;
+}
+
+/**
+ * Default window options for new menu items
+ */
+export const DEFAULT_WINDOW_OPTIONS = {
+  width: 1200,
+  height: 800,
+  minWidth: 600,
+  minHeight: 400,
+  resizable: true,
+  maximizable: true,
+  minimizable: true,
+  center: true,
+  frame: true,
+  contextMenu: true,
+  accelerator: {
+    zoom: true,
+    reload: true,
+    devtools: true
+  }
+};
+
+/**
+ * Default view options for new menu items
+ */
+export const DEFAULT_VIEW_OPTIONS = {
+  bounds: {
+    width: 800,
+    height: 600
+  }
+};
+
+/**
+ * Creates a new menu item with defaults
+ */
+export function createMenuItem(partial?: Partial<DockMenuItem>): DockMenuItem {
+  return {
+    id: partial?.id || `menu-item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    caption: partial?.caption || 'New Menu Item',
+    url: partial?.url || '',
+    openMode: partial?.openMode || 'view',
+    icon: partial?.icon,
+    children: partial?.children || [],
+    order: partial?.order || 0,
+    metadata: partial?.metadata || {},
+    windowOptions: partial?.windowOptions || DEFAULT_WINDOW_OPTIONS,
+    viewOptions: partial?.viewOptions || DEFAULT_VIEW_OPTIONS
+  };
+}
+
+/**
+ * Creates a new dock applications menu items configuration
+ * This creates the singleton DockApplicationsMenuItemsConfig
+ */
+export function createDockConfiguration(userId: string, appId: string): Partial<DockApplicationsMenuItemsConfig> {
+  // Don't generate configId, creationTime, lastUpdated on client
+  // Server will generate these on first save
+
+  // Create a default menu item so the configuration is valid
+  const defaultMenuItem = createMenuItem({
+    caption: 'Sample Item',
+    url: '/sample',
+    icon: 'https://cdn.openfin.co/workspace/19.0.11/icons/defaultFavorite.svg',
+    order: 0
+  });
+
+  return {
+    // configId will be generated by server
+    appId,
+    userId,
+    componentType: COMPONENT_TYPES.DOCK as 'Dock',
+    componentSubType: COMPONENT_SUBTYPES.DOCK_APPLICATIONS_MENU_ITEMS as 'DockApplicationsMenuItems',
+    name: 'Dock Applications Menu',
+    description: 'Dock applications menu items configuration',
+    config: {
+      menuItems: [defaultMenuItem]
+    },
+    settings: [],
+    activeSetting: '',  // Will be set to 'temp-uuid' by server
+    tags: ['dock', 'applications'],
+    category: 'dock',
+    isShared: false,
+    isDefault: false,
+    isLocked: false,
+    createdBy: userId,
+    lastUpdatedBy: userId
+    // creationTime and lastUpdated will be set by server
+  };
+}
+
+/**
+ * Validates a dock configuration
+ * Note: configId is NOT required for new configurations (server generates it)
+ */
+export function validateDockConfiguration(config: Partial<DockConfiguration>): ValidationResult {
+  const errors: ValidationError[] = [];
+
+  // Validate required fields (configId is optional - server generates for new configs)
+  if (!config.userId) {
+    errors.push({ field: 'userId', message: 'User ID is required' });
+  }
+
+  if (!config.name) {
+    errors.push({ field: 'name', message: 'Configuration name is required' });
+  }
+
+  if (!config.config?.menuItems) {
+    errors.push({ field: 'config.menuItems', message: 'Menu items are required' });
+  }
+
+  // Validate menu items
+  const validateMenuItem = (item: DockMenuItem, path: string) => {
+    if (!item.id) {
+      errors.push({ field: `${path}.id`, message: 'Menu item ID is required', value: item });
+    }
+
+    if (!item.caption) {
+      errors.push({ field: `${path}.caption`, message: 'Menu item caption is required', value: item });
+    }
+
+    // URL is optional - can be configured later
+    // Only warn if it's a leaf item (no children) and no URL
+    // This allows users to create menu structure first, then add URLs later
+    // if ((!item.url || !item.url.trim()) && (!item.children || item.children.length === 0)) {
+    //   errors.push({ field: `${path}.url`, message: 'Menu item must have URL or children', value: item });
+    // }
+
+    if (item.openMode && !['window', 'view'].includes(item.openMode)) {
+      errors.push({ field: `${path}.openMode`, message: 'Invalid open mode', value: item.openMode });
+    }
+
+    // Recursively validate children
+    if (item.children) {
+      item.children.forEach((child, index) => {
+        validateMenuItem(child, `${path}.children[${index}]`);
+      });
+    }
+  };
+
+  config.config?.menuItems?.forEach((item, index) => {
+    validateMenuItem(item, `config.menuItems[${index}]`);
+  });
+
+  // Check for duplicate IDs
+  const ids = new Set<string>();
+  const checkDuplicateIds = (items: DockMenuItem[]) => {
+    items.forEach(item => {
+      if (ids.has(item.id)) {
+        errors.push({ field: 'config.menuItems', message: `Duplicate ID found: ${item.id}`, value: item.id });
+      }
+      ids.add(item.id);
+      if (item.children) {
+        checkDuplicateIds(item.children);
+      }
+    });
+  };
+
+  if (config.config?.menuItems) {
+    checkDuplicateIds(config.config.menuItems);
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}
+
+/**
+ * Flattens menu items into a flat array
+ */
+export function flattenMenuItems(items: DockMenuItem[], parentId?: string): TreeNode[] {
+  const result: TreeNode[] = [];
+
+  const flatten = (items: DockMenuItem[], parent?: string, level = 0) => {
+    items.forEach(item => {
+      const node: TreeNode = {
+        ...item,
+        parentId: parent,
+        level,
+        expanded: false,
+        selected: false
+      };
+      result.push(node);
+
+      if (item.children && item.children.length > 0) {
+        flatten(item.children, item.id, level + 1);
+      }
+    });
+  };
+
+  flatten(items, parentId);
+  return result;
+}
+
+/**
+ * Rebuilds tree structure from flat array
+ */
+export function buildTreeFromFlat(nodes: TreeNode[]): DockMenuItem[] {
+  const nodeMap = new Map<string, TreeNode>();
+  const roots: DockMenuItem[] = [];
+
+  // Create a map of all nodes
+  nodes.forEach(node => {
+    nodeMap.set(node.id, { ...node, children: [] });
+  });
+
+  // Build the tree structure
+  nodes.forEach(node => {
+    if (node.parentId) {
+      const parent = nodeMap.get(node.parentId);
+      if (parent) {
+        if (!parent.children) {
+          parent.children = [];
+        }
+        parent.children.push(nodeMap.get(node.id)!);
+      }
+    } else {
+      roots.push(nodeMap.get(node.id)!);
+    }
+  });
+
+  // Sort by order
+  const sortItems = (items: DockMenuItem[]) => {
+    items.sort((a, b) => a.order - b.order);
+    items.forEach(item => {
+      if (item.children) {
+        sortItems(item.children);
+      }
+    });
+  };
+
+  sortItems(roots);
+  return roots;
+}

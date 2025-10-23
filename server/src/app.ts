@@ -11,15 +11,28 @@ import logger from './utils/logger';
 export async function createApp(): Promise<express.Application> {
   const app = express();
 
+  // CORS configuration - Must be BEFORE other middleware
+  // All restrictions removed to allow any origin, method, and headers
+  app.use(cors({
+    origin: '*', // Allow all origins
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: '*', // Allow all headers
+    exposedHeaders: '*', // Expose all response headers
+    credentials: false, // Set to true if you need to support cookies/auth
+    maxAge: 86400, // Cache preflight requests for 24 hours
+    preflightContinue: false,
+    optionsSuccessStatus: 204
+  }));
+
   // Security middleware
   // Note: CSP is relaxed for development. In production, remove unsafe-inline and use nonces
   const isDevelopment = process.env.NODE_ENV !== 'production';
 
   app.use(helmet({
-    contentSecurityPolicy: {
+    contentSecurityPolicy: isDevelopment ? false : {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", ...(isDevelopment ? ["'unsafe-inline'"] : [])],
+        styleSrc: ["'self'"],
         scriptSrc: ["'self'"],
         imgSrc: ["'self'", "data:", "https:"],
         connectSrc: ["'self'"],
@@ -29,16 +42,9 @@ export async function createApp(): Promise<express.Application> {
         frameSrc: ["'none'"]
       }
     },
-    crossOriginEmbedderPolicy: !isDevelopment,
-    crossOriginResourcePolicy: { policy: "cross-origin" }
-  }));
-
-  // CORS configuration
-  app.use(cors({
-    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000', 'http://localhost:5173'],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-app-id', 'x-user-id']
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: false,
+    crossOriginOpenerPolicy: false
   }));
 
   // Rate limiting

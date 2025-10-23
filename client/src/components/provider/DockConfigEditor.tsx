@@ -27,9 +27,10 @@ import {
 import { TreeView } from './TreeView';
 import { PropertiesPanel } from './PropertiesPanel';
 import { IconPicker } from './IconPicker';
-import { DockConfiguration, createMenuItem, validateDockConfiguration } from '@/types/dockConfig';
+import { DockConfiguration, createMenuItem, validateDockConfiguration } from '@/openfin/types/dockConfig';
 import { useDockConfigStore } from '@/stores/dockConfigStore';
-import { useOpenFinDock } from '@/hooks/useOpenFinWorkspace';
+import { useOpenFinDock } from '@/openfin/hooks/useOpenfinWorkspace';
+import { useOpenfinTheme } from '@/openfin/hooks/useOpenfinTheme';
 import '@/utils/testApi'; // Import test utility for debugging
 import { logger } from '@/utils/logger';
 
@@ -46,13 +47,31 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
   const openFinDock = useOpenFinDock();
   const store = useDockConfigStore();
 
+  // Sync OpenFin platform theme with React theme provider
+  useOpenfinTheme();
+
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const [iconPickerCallback, setIconPickerCallback] = useState<((icon: string) => void) | null>(null);
 
   // Load configuration on mount
   useEffect(() => {
     store.loadConfig(userId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
+
+  const handleSaveDraft = useCallback(() => {
+    const currentConfig = store.currentConfig;
+    if (currentConfig) {
+      localStorage.setItem('dock-config-draft', JSON.stringify(currentConfig));
+      toast({
+        title: 'Draft saved',
+        description: 'Your changes have been saved locally',
+      });
+    }
+    // Note: Intentionally not including store.currentConfig in deps to avoid infinite loops
+    // We read the latest value directly from the store closure
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-save draft every 30 seconds
   useEffect(() => {
@@ -63,21 +82,12 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
     }, 30000);
 
     return () => clearTimeout(timer);
-  }, [store.isDirty, store.currentConfig]);
-
-  const handleSaveDraft = useCallback(() => {
-    if (store.currentConfig) {
-      localStorage.setItem('dock-config-draft', JSON.stringify(store.currentConfig));
-      toast({
-        title: 'Draft saved',
-        description: 'Your changes have been saved locally',
-      });
-    }
-  }, [store.currentConfig, toast]);
+    // Only re-run when isDirty changes, not when config changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store.isDirty]);
 
   const handleSave = useCallback(async () => {
     logger.debug('Save button clicked', undefined, 'DockConfigEditor');
-    logger.debug('Current config:', store.currentConfig, 'DockConfigEditor');
 
     if (!store.currentConfig) {
       logger.error('No current config available', undefined, 'DockConfigEditor');
@@ -89,7 +99,7 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
       return;
     }
 
-    // Validate configuration before saving (configId not required for new configs)
+    // Validate configuration before saving
     const validation = validateDockConfiguration(store.currentConfig);
     logger.debug('Validation result', validation, 'DockConfigEditor');
 
@@ -103,41 +113,57 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
       return;
     }
 
+    const menuItemCount = store.currentConfig.config?.menuItems?.length || 0;
+    const configName = store.currentConfig.name;
+
     try {
       logger.info('Calling store.saveConfig()', undefined, 'DockConfigEditor');
       await store.saveConfig();
+
+      // Check if save actually succeeded by checking the error state
+      if (store.error) {
+        throw new Error(store.error);
+      }
+
       logger.info('Save completed successfully', undefined, 'DockConfigEditor');
 
       // Reload the dock to show the updated configuration
       if (window.fin) {
         try {
-          logger.info('Reloading dock with updated configuration...', undefined, 'DockConfigEditor');
-          const { Dock } = await import('@openfin/workspace');
-          const { registerDockFromConfig, showDock } = await import('@/platform/dock');
+          logger.info('Updating dock with new configuration...', undefined, 'DockConfigEditor');
+          const dock = await import('@/openfin/platform/openfinDock');
 
-          // Deregister current dock
-          await Dock.deregister();
-
-          // Re-register with updated config
           if (store.currentConfig) {
-            await registerDockFromConfig(store.currentConfig);
-            await showDock();
-            logger.info('Dock reloaded successfully', undefined, 'DockConfigEditor');
+            // Use updateConfig for efficient update (no deregister/register cycle)
+            await dock.updateConfig({
+              menuItems: store.currentConfig.config.menuItems
+            });
+            logger.info('Dock updated successfully', undefined, 'DockConfigEditor');
           }
         } catch (dockError) {
-          logger.warn('Failed to reload dock, may require manual reload', dockError, 'DockConfigEditor');
+          logger.error('Failed to update dock', dockError, 'DockConfigEditor');
+          // If update fails, try full reload as fallback
+          try {
+            logger.info('Attempting full dock reload as fallback...', undefined, 'DockConfigEditor');
+            const dock = await import('@/openfin/platform/openfinDock');
+            await dock.reload();
+            logger.info('Dock reloaded successfully', undefined, 'DockConfigEditor');
+          } catch (reloadError) {
+            logger.error('Failed to reload dock', reloadError, 'DockConfigEditor');
+          }
         }
       }
 
       toast({
-        title: 'Configuration saved',
-        description: 'Your dock configuration has been saved and reloaded',
+        title: 'Configuration saved successfully',
+        description: `Saved "${configName}" with ${menuItemCount} menu item(s). Dock has been reloaded.`,
       });
     } catch (error) {
       logger.error('Save failed in component', error, 'DockConfigEditor');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save configuration';
       toast({
         title: 'Save failed',
-        description: error instanceof Error ? error.message : 'Failed to save configuration',
+        description: `Could not save "${configName}": ${errorMessage}`,
         variant: 'destructive'
       });
     }

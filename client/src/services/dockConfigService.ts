@@ -4,8 +4,8 @@
  */
 
 import { apiClient, apiCall } from '@/utils/apiClient';
-import { DockConfiguration, DockConfigFilter, DockMenuItem } from '@/types/dockConfig';
-import { COMPONENT_TYPES } from '@stern/shared-types';
+import { DockConfiguration, DockConfigFilter, DockMenuItem, DockApplicationsMenuItemsConfig } from '@/openfin/types/dockConfig';
+import { COMPONENT_TYPES, COMPONENT_SUBTYPES } from '@stern/shared-types';
 
 /**
  * Helper function to clean menu items - set defaults for missing fields
@@ -30,7 +30,8 @@ export const dockConfigService = {
     // Clean the config before saving
     const cleanedConfig = {
       ...config,
-      icon: config.icon || 'https://cdn.openfin.co/workspace/19.0.11/icons/defaultFavorite.svg',
+      // Don't set a default icon - let it fall back to platform icon during registration
+      icon: config.icon || undefined,
       description: config.description || '',
       componentType: COMPONENT_TYPES.DOCK,
       config: {
@@ -46,7 +47,31 @@ export const dockConfigService = {
   },
 
   /**
+   * Load the singleton DockApplicationsMenuItems configuration
+   * This is the NEW way - dock menu items are stored separately from data providers
+   */
+  async loadApplicationsMenuItems(userId: string): Promise<DockApplicationsMenuItemsConfig | null> {
+    try {
+      const configs = await apiCall<DockApplicationsMenuItemsConfig[]>(
+        () => apiClient.get('/configurations/by-user/' + userId, {
+          params: {
+            componentType: COMPONENT_TYPES.DOCK,
+            componentSubType: COMPONENT_SUBTYPES.DOCK_APPLICATIONS_MENU_ITEMS,
+            includeDeleted: false
+          }
+        }),
+        'Failed to load dock applications menu items'
+      );
+      return configs.length > 0 ? configs[0] : null;
+    } catch (error) {
+      console.error('Error loading dock applications menu items:', error);
+      return null;
+    }
+  },
+
+  /**
    * Load dock configurations for a user
+   * @deprecated Use loadApplicationsMenuItems() instead for menu items
    */
   async loadByUser(userId: string): Promise<DockConfiguration[]> {
     return apiCall<DockConfiguration[]>(
@@ -80,7 +105,8 @@ export const dockConfigService = {
     // Set defaults for optional fields that server validation might require
     const cleanedData = {
       ...updateData,
-      icon: updateData.icon || 'https://cdn.openfin.co/workspace/19.0.11/icons/defaultFavorite.svg',
+      // Don't set a default icon - let it fall back to platform icon during registration
+      icon: updateData.icon || undefined,
       description: updateData.description || '',
       componentType: COMPONENT_TYPES.DOCK,
       lastUpdatedBy: updates.lastUpdatedBy || updates.userId || 'unknown'
@@ -269,71 +295,3 @@ export const dockConfigService = {
     }
   }
 };
-
-/**
- * Mock service for development when API is not available
- */
-export const mockDockConfigService = {
-  async save(config: DockConfiguration): Promise<DockConfiguration> {
-    const saved = {
-      ...config,
-      configId: config.configId || `mock-${Date.now()}`,
-      creationTime: config.creationTime || new Date(),
-      lastUpdated: new Date()
-    };
-    localStorage.setItem(`dock-config-${saved.configId}`, JSON.stringify(saved));
-    return saved;
-  },
-
-  async loadByUser(userId: string): Promise<DockConfiguration[]> {
-    const configs: DockConfiguration[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key?.startsWith('dock-config-')) {
-        const config = JSON.parse(localStorage.getItem(key)!);
-        if (config.userId === userId) {
-          configs.push(config);
-        }
-      }
-    }
-    return configs;
-  },
-
-  async loadById(configId: string): Promise<DockConfiguration> {
-    const data = localStorage.getItem(`dock-config-${configId}`);
-    if (!data) {
-      throw new Error('Configuration not found');
-    }
-    return JSON.parse(data);
-  },
-
-  async update(configId: string, updates: Partial<DockConfiguration>): Promise<DockConfiguration> {
-    const existing = await this.loadById(configId);
-    const updated = {
-      ...existing,
-      ...updates,
-      lastUpdated: new Date()
-    };
-    localStorage.setItem(`dock-config-${configId}`, JSON.stringify(updated));
-    return updated;
-  },
-
-  async delete(configId: string): Promise<void> {
-    localStorage.removeItem(`dock-config-${configId}`);
-  },
-
-  // ... implement other methods similarly for mock
-  query: dockConfigService.query,
-  clone: dockConfigService.clone,
-  listByApp: dockConfigService.listByApp,
-  getDefault: dockConfigService.getDefault,
-  setAsDefault: dockConfigService.setAsDefault,
-  share: dockConfigService.share,
-  export: dockConfigService.export,
-  import: dockConfigService.import,
-  validate: dockConfigService.validate
-};
-
-// Export the appropriate service based on environment
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
-export default USE_MOCK ? mockDockConfigService : dockConfigService;

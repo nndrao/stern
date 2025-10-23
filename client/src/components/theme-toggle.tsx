@@ -1,6 +1,6 @@
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
-import { isOpenFin, setTheme as setOpenFinTheme } from "@/utils/openfin"
+import { isOpenFin, setTheme as setOpenFinTheme } from "@/openfin/utils/openfinUtils"
 
 import { Toggle } from "@/components/ui/toggle"
 import {

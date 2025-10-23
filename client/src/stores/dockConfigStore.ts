@@ -8,11 +8,13 @@ import { devtools } from 'zustand/middleware';
 import {
   DockMenuItem,
   DockConfiguration,
+  DockApplicationsMenuItemsConfig,
   createMenuItem,
   createDockConfiguration,
-} from '@/types/dockConfig';
+} from '@/openfin/types/dockConfig';
 import { dockConfigService } from '@/services/dockConfigService';
 import { logger } from '@/utils/logger';
+import { COMPONENT_SUBTYPES } from '@stern/shared-types';
 
 interface HistoryState {
   past: DockConfiguration[];
@@ -161,26 +163,31 @@ export const useDockConfigStore = create<DockConfigStore>()(
       });
 
       try {
-        logger.info('Loading dock configuration', { userId }, 'dockConfigStore');
-        const configs = await dockConfigService.loadByUser(userId);
-        logger.info('Loaded configs from API', { count: configs.length }, 'dockConfigStore');
+        logger.info('Loading dock applications menu items configuration', { userId }, 'dockConfigStore');
+        const config = await dockConfigService.loadApplicationsMenuItems(userId);
 
-        if (configs.length > 0) {
-          const config = configs[0];
-          logger.info('Using first config', {
+        if (config && config.config?.menuItems && config.config.menuItems.length > 0) {
+          logger.info('Loaded DockApplicationsMenuItems config', {
             configId: config.configId,
             name: config.name,
-            menuItemsCount: config.config?.menuItems?.length
+            menuItemsCount: config.config.menuItems.length
           }, 'dockConfigStore');
-          logger.debug('Config menu items', config.config?.menuItems, 'dockConfigStore');
+          logger.debug('Config menu items with children',
+            config.config.menuItems.map(item => ({
+              caption: item.caption,
+              hasChildren: !!item.children,
+              childrenCount: item.children?.length || 0
+            })),
+            'dockConfigStore'
+          );
 
           set({
-            currentConfig: configs[0],
+            currentConfig: config as DockConfiguration,
             isDirty: false,
             isLoading: false
           });
         } else {
-          logger.warn('No configs found, creating new one', undefined, 'dockConfigStore');
+          logger.warn('No DockApplicationsMenuItems config found, creating new one', undefined, 'dockConfigStore');
           // Create new config if none exists
           const newConfig = createDockConfiguration(userId, 'stern-platform') as DockConfiguration;
           logger.debug('New config created', newConfig, 'dockConfigStore');
@@ -208,15 +215,12 @@ export const useDockConfigStore = create<DockConfigStore>()(
         return;
       }
 
-      console.log('[Dock MenuItem] === SAVE START ===');
-      console.log('[Dock MenuItem] menuItemsCount:', currentConfig.config?.menuItems?.length);
-      console.log('[Dock MenuItem] All menu items:', JSON.stringify(currentConfig.config?.menuItems, null, 2));
-
-      logger.info('[Dock MenuItem] Saving configuration', {
+      logger.info('Saving configuration', {
         configId: currentConfig.configId,
         name: currentConfig.name,
         menuItemsCount: currentConfig.config?.menuItems?.length
       }, 'dockConfigStore');
+      logger.debug('Save - All menu items', currentConfig.config?.menuItems, 'dockConfigStore');
 
       set({
         isLoading: true,
@@ -238,30 +242,29 @@ export const useDockConfigStore = create<DockConfigStore>()(
             isShared: currentConfig.isShared,
             isDefault: currentConfig.isDefault,
             isLocked: currentConfig.isLocked,
-            lastUpdatedBy: currentConfig.lastUpdatedBy
+            lastUpdatedBy: currentConfig.lastUpdatedBy,
+            componentSubType: COMPONENT_SUBTYPES.DOCK_APPLICATIONS_MENU_ITEMS
           };
 
-          console.log('[Dock MenuItem] Sending to server:', updates.config?.menuItems?.length, 'items');
-
-          logger.info('[Dock MenuItem] Updating existing config', {
+          logger.info('Updating existing config', {
             configId: currentConfig.configId,
             menuItemsInUpdate: updates.config?.menuItems?.length
           }, 'dockConfigStore');
+          logger.debug('Sending menu items to server', updates.config?.menuItems, 'dockConfigStore');
 
           const updated = await dockConfigService.update(currentConfig.configId, updates);
 
-          console.log('[Dock MenuItem] Server returned:', updated.config?.menuItems?.length, 'items');
-          console.log('[Dock MenuItem] Returned items:', JSON.stringify(updated.config?.menuItems, null, 2));
-
-          logger.info('[Dock MenuItem] Update successful', {
+          logger.info('Update successful', {
             configId: updated.configId,
             menuItemsReturned: updated.config?.menuItems?.length
           }, 'dockConfigStore');
+          logger.debug('Server returned menu items', updated.config?.menuItems, 'dockConfigStore');
         } else {
           // For new configs, send the full config
           const configToSave = {
             ...currentConfig,
-            activeSetting: currentConfig.activeSetting || ''
+            activeSetting: currentConfig.activeSetting || '',
+            componentSubType: COMPONENT_SUBTYPES.DOCK_APPLICATIONS_MENU_ITEMS
           };
 
           logger.info('Saving new config', undefined, 'dockConfigStore');
@@ -320,12 +323,13 @@ export const useDockConfigStore = create<DockConfigStore>()(
       if (!state.currentConfig) return;
 
       const newItem = item || createMenuItem();
-      let newMenuItems = [...state.currentConfig.config.menuItems];
+      let newMenuItems = [...(state.currentConfig.config.menuItems || [])];
 
-      console.log('[Dock MenuItem] === ADD ITEM ===');
-      console.log('[Dock MenuItem] Current items:', newMenuItems.length);
-      console.log('[Dock MenuItem] New item:', newItem.caption);
-      console.log('[Dock MenuItem] Parent:', parent?.caption || 'ROOT');
+      logger.debug('Adding menu item', {
+        currentItemsCount: newMenuItems.length,
+        newItemCaption: newItem.caption,
+        parentCaption: parent?.caption || 'ROOT'
+      }, 'dockConfigStore');
 
       if (parent) {
         // Add as child
@@ -337,7 +341,7 @@ export const useDockConfigStore = create<DockConfigStore>()(
         newMenuItems.push(newItem);
       }
 
-      console.log('[Dock MenuItem] After add, total items:', newMenuItems.length);
+      logger.debug('Menu item added', { totalItemsCount: newMenuItems.length }, 'dockConfigStore');
 
       // Save to history
       const newHistory = {
@@ -365,7 +369,7 @@ export const useDockConfigStore = create<DockConfigStore>()(
       const state = get();
       if (!state.currentConfig) return;
 
-      const newMenuItems = updateMenuItemRecursive(state.currentConfig.config.menuItems, id, updates);
+      const newMenuItems = updateMenuItemRecursive(state.currentConfig.config.menuItems || [], id, updates);
 
       // Save to history
       const newHistory = {
@@ -399,7 +403,7 @@ export const useDockConfigStore = create<DockConfigStore>()(
       const state = get();
       if (!state.currentConfig) return;
 
-      const newMenuItems = deleteMenuItemRecursive(state.currentConfig.config.menuItems, id);
+      const newMenuItems = deleteMenuItemRecursive(state.currentConfig.config.menuItems || [], id);
 
       // Save to history
       const newHistory = {
@@ -431,7 +435,7 @@ export const useDockConfigStore = create<DockConfigStore>()(
       const state = get();
       if (!state.currentConfig) return;
 
-      let newMenuItems = [...state.currentConfig.config.menuItems];
+      let newMenuItems = [...(state.currentConfig.config.menuItems || [])];
 
       // Find and remove source item
       const sourceItem = findMenuItem(newMenuItems, sourceId);
@@ -445,7 +449,7 @@ export const useDockConfigStore = create<DockConfigStore>()(
           addChildToItem(item, targetId, sourceItem)
         );
       } else {
-        const targetParent = findParentMenuItem(state.currentConfig.config.menuItems, targetId);
+        const targetParent = findParentMenuItem(state.currentConfig.config.menuItems || [], targetId);
         if (targetParent) {
           newMenuItems = newMenuItems.map(item =>
             insertItemRelativeToTarget(item, targetId, sourceItem, position, targetParent.id)

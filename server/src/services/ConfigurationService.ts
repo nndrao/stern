@@ -67,13 +67,6 @@ export class ConfigurationService {
       logger.debug('activeSetting was empty/null/undefined, set to temp-uuid', { configId: config.configId });
     }
 
-    // Validate configuration
-    const validationError = ValidationUtils.validateCompleteConfig(config);
-    if (validationError) {
-      logger.error('Configuration validation failed', { configId: config.configId, error: validationError });
-      throw new Error(`Validation failed: ${validationError}`);
-    }
-
     try {
       const result = await this.storage.create(config);
       logger.info('Configuration created successfully', { 
@@ -123,13 +116,6 @@ export class ConfigurationService {
       };
 
       const result = await this.storage.update(configId, updateData);
-      
-      // Validate updated configuration
-      const validationError = ValidationUtils.validateCompleteConfig(result);
-      if (validationError) {
-        logger.error('Updated configuration validation failed', { configId, error: validationError });
-        throw new Error(`Validation failed: ${validationError}`);
-      }
 
       logger.info('Configuration updated successfully', { 
         configId, 
