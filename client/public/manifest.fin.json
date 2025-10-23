@@ -24,7 +24,7 @@
   "shortcut": {
     "company": "Stern Trading",
     "description": "Stern Trading Platform",
-    "icon": "http://localhost:5173/stern.png",
+    "icon": "http://localhost:5173/star.png",
     "name": "Stern Trading Platform",
     "target": ["desktop", "start-menu"]
   },
@@ -43,7 +43,7 @@
         "description": "Main trading blotter",
         "url": "http://localhost:5173/",
         "manifestType": "view",
-        "icons": [{ "src": "http://localhost:5173/stern.png" }],
+        "icons": [{ "src": "http://localhost:5173/star.png" }],
         "tags": ["trading", "blotter"]
       }
     ]
