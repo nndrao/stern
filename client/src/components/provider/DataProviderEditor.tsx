@@ -51,10 +51,10 @@ export const DataProviderEditor: React.FC<DataProviderEditorProps> = ({
 
   return (
     <div className="flex h-full bg-background datasource-config-window">
-      {/* Left Sidebar - Fixed 320px width matching AGV3 */}
-      <div className="w-80 border-r border-border flex flex-col bg-muted/30">
-        <div className="p-4 border-b border-border">
-          <h2 className="text-lg font-semibold">Datasources</h2>
+      {/* Left Sidebar - Compact */}
+      <div className="w-64 border-r border-border flex flex-col bg-muted/30">
+        <div className="px-3 py-2.5 border-b border-border">
+          <h2 className="text-sm font-semibold">Datasources</h2>
         </div>
         <div className="flex-1 overflow-hidden">
           <ProviderList
@@ -63,9 +63,9 @@ export const DataProviderEditor: React.FC<DataProviderEditorProps> = ({
             onSelect={setCurrentProvider}
           />
         </div>
-        <div className="p-3 border-t border-border">
-          <Button onClick={handleCreate} className="w-full" size="sm">
-            <Plus className="w-4 h-4 mr-2" />
+        <div className="p-2.5 border-t border-border">
+          <Button onClick={handleCreate} className="w-full h-7 text-xs" size="sm">
+            <Plus className="w-3.5 h-3.5 mr-1.5" />
             New
           </Button>
         </div>

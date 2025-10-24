@@ -42,9 +42,10 @@ interface ProviderFormProps {
   provider: DataProviderConfig;
   onProviderChange: (provider: DataProviderConfig) => void;
   onClose: () => void;
+  onSave?: () => void; // Callback after successful save to mark as clean
 }
 
-export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, provider, onProviderChange, onClose }) => {
+export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, provider, onProviderChange, onClose, onSave }) => {
   const { toast } = useToast();
   const [isDirty, setIsDirty] = useState(false);
 
@@ -84,6 +85,8 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, provider, on
         });
       }
       setIsDirty(false);
+      // Notify parent that save was successful (marks as clean)
+      onSave?.();
     } catch (error: any) {
       toast({
         title: 'Save Failed',
@@ -91,7 +94,7 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, provider, on
         variant: 'destructive'
       });
     }
-  }, [provider, userId, createMutation, updateMutation, onProviderChange, toast]);
+  }, [provider, userId, createMutation, updateMutation, onProviderChange, onSave, toast]);
 
   const handleFieldChange = useCallback((field: string, value: any) => {
     onProviderChange({ ...provider, [field]: value });

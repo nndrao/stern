@@ -13,58 +13,25 @@ export const sternAgGridTheme = themeQuartz
   // Light mode configuration
   .withParams(
     {
-      accentColor: '#3b82f6',
-      backgroundColor: '#ffffff',
-      borderColor: '#e5e7eb',
-      browserColorScheme: 'light',
-      cellTextColor: '#000000',
-      columnBorder: true,
-      fontFamily: {
-        googleFont: 'Inter',
-      },
-      fontSize: 12,
-      headerBackgroundColor: '#f9fafb',
-      headerFontFamily: {
-        googleFont: 'Inter',
-      },
-      headerFontSize: 12,
-      headerFontWeight: 500,
-      headerTextColor: '#374151',
-      oddRowBackgroundColor: '#f9fafb',
-      rowHeight: 36,
-      headerHeight: 36,
-      cellHorizontalPadding: 8,
-      spacing: 6,
-    },
+      backgroundColor: "#E4E4E4",
+      browserColorScheme: "light",
+      headerFontSize: 14
+  },
     'light'
   )
   // Dark mode configuration
   .withParams(
     {
-      accentColor: '#3b82f6',
-      backgroundColor: '#0a0a0a',
-      borderColor: '#27272a',
-      browserColorScheme: 'dark',
-      cellTextColor: '#ffffff',
-      columnBorder: true,
-      fontFamily: {
-        googleFont: 'Inter',
+      backgroundColor: "#2B2B2C",
+      browserColorScheme: "dark",
+      chromeBackgroundColor: {
+          ref: "foregroundColor",
+          mix: 0.07,
+          onto: "backgroundColor"
       },
-      fontSize: 12,
-      foregroundColor: '#ffffff',
-      headerBackgroundColor: '#18181b',
-      headerFontFamily: {
-        googleFont: 'Inter',
-      },
-      headerFontSize: 12,
-      headerFontWeight: 500,
-      headerTextColor: '#e5e7eb',
-      oddRowBackgroundColor: '#18181b',
-      rowHeight: 36,
-      headerHeight: 36,
-      cellHorizontalPadding: 8,
-      spacing: 6,
-    },
+      foregroundColor: "#FFF",
+      headerFontSize: 14
+  },
     'dark'
   );
 

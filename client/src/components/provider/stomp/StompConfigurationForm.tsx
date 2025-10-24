@@ -541,22 +541,22 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
   return (
     <div className="h-full w-full flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full flex flex-col">
-        <TabsList className="grid w-full grid-cols-3 rounded-none h-12 bg-muted/50 border-b">
-          <TabsTrigger value="connection" className="rounded-none data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary">
+        <TabsList className="grid w-full grid-cols-3 rounded-none h-9 bg-muted/50 border-b">
+          <TabsTrigger value="connection" className="rounded-none text-xs data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary">
             Connection
           </TabsTrigger>
-          <TabsTrigger value="fields" className="rounded-none data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary">
+          <TabsTrigger value="fields" className="rounded-none text-xs data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary">
             <span>Fields</span>
             {inferredFields.length > 0 && (
-              <Badge variant="secondary" className="ml-2 h-5 px-2 text-xs">
+              <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-xs">
                 {inferredFields.length}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="columns" className="rounded-none data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary">
+          <TabsTrigger value="columns" className="rounded-none text-xs data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary">
             <span>Columns</span>
             {(committedSelectedFields.size + manualColumns.length) > 0 && (
-              <Badge variant="secondary" className="ml-2 h-5 px-2 text-xs">
+              <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-xs">
                 {committedSelectedFields.size + manualColumns.length}
               </Badge>
             )}
@@ -612,8 +612,8 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
           </TabsContent>
         </div>
 
-        {/* Unified footer - shows different buttons based on active tab */}
-        <div className="sticky bottom-0 flex items-center justify-between p-4 border-t bg-background">
+        {/* Unified footer - Compact */}
+        <div className="sticky bottom-0 flex items-center justify-between px-3 py-2.5 border-t bg-background">
           <div className="flex items-center gap-2">
             {/* Connection tab buttons */}
             {activeTab === 'connection' && (
@@ -621,6 +621,8 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
                 onClick={handleTestConnection}
                 disabled={testing || !config.websocketUrl}
                 variant="outline"
+                size="sm"
+                className="h-7 px-3 text-xs"
               >
                 {testing ? 'Testing...' : 'Test Connection'}
               </Button>
@@ -634,6 +636,8 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
                     onClick={handleInferFields}
                     disabled={inferring || !config.websocketUrl}
                     variant="outline"
+                    size="sm"
+                    className="h-7 px-3 text-xs"
                   >
                     {inferring ? 'Inferring...' : 'Infer Fields'}
                   </Button>
@@ -642,6 +646,8 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
                   <Button
                     onClick={handleUpdateColumns}
                     variant="default"
+                    size="sm"
+                    className="h-7 px-3 text-xs"
                   >
                     Update Columns
                   </Button>
@@ -658,6 +664,8 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
                   setFieldColumnOverrides({});
                 }}
                 variant="outline"
+                size="sm"
+                className="h-7 px-3 text-xs"
               >
                 Clear All
               </Button>
@@ -668,11 +676,12 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
             <Button
               onClick={onCancel}
               variant="ghost"
-              className="text-foreground hover:bg-muted hover:text-foreground"
+              size="sm"
+              className="h-7 px-3 text-xs text-foreground hover:bg-muted hover:text-foreground"
             >
               Cancel
             </Button>
-            <Button onClick={onSave} variant="default">
+            <Button onClick={onSave} variant="default" size="sm" className="h-7 px-3 text-xs">
               {isEditMode ? 'Update Datasource' : 'Create Datasource'}
             </Button>
           </div>

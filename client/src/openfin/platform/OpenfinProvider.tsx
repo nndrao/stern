@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { init } from '@openfin/workspace-platform';
 import { OpenFinWorkspaceProvider } from '../services/OpenfinWorkspaceProvider';
 import { useOpenfinTheme } from '../hooks/useOpenfinTheme';
-import { Sidebar } from '@/components/provider/Sidebar';
+import { TopTabBar } from '@/components/provider/TopTabBar';
 import { DockConfigEditor } from '@/components/provider/DockConfigEditor';
 import { DataProviderEditor } from '@/components/provider/DataProviderEditor';
 import { Toaster } from '@/components/ui/toaster';
@@ -34,7 +34,6 @@ export default function Provider() {
   const isInitialized = useRef(false);
   const [isPlatformReady, setIsPlatformReady] = useState(false);
   const [activeTab, setActiveTab] = useState('dock');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     // Check if we're in OpenFin environment and prevent double initialization
@@ -353,12 +352,10 @@ export default function Provider() {
     }, []);
 
     return (
-      <div className="flex h-screen bg-background text-foreground">
-        <Sidebar
+      <div className="flex flex-col h-screen bg-background text-foreground p-2.5">
+        <TopTabBar
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          collapsed={sidebarCollapsed}
-          onCollapsedChange={setSidebarCollapsed}
         />
         <main className="flex-1 overflow-hidden">
           {activeTab === 'dock' && <DockConfigEditor />}

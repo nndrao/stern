@@ -185,12 +185,12 @@ export function ColumnsTab({
     {
       field: 'actions',
       headerName: '',
-      width: 50,
+      width: 40,
       pinned: 'left',
       cellRenderer: (params: any) => {
         return (
           <button
-            className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-foreground transition-colors"
+            className="p-0.5 hover:bg-accent rounded text-muted-foreground hover:text-foreground transition-colors"
             onClick={() => {
               if (params.data.source === 'field') {
                 // For field-based columns, we remove from selected fields
@@ -209,16 +209,15 @@ export function ColumnsTab({
     },
     {
       field: 'field',
-      headerName: 'Field Name',
-      flex: 1,
-      minWidth: 150,
+      headerName: 'Field',
+      width: 180,
       sortable: true,
       filter: true,
     },
     {
       field: 'cellDataType',
       headerName: 'Type',
-      width: 120,
+      width: 100,
       sortable: true,
       filter: true,
       cellEditor: 'agSelectCellEditor',
@@ -229,17 +228,17 @@ export function ColumnsTab({
     },
     {
       field: 'headerName',
-      headerName: 'Header Name',
+      headerName: 'Header',
       flex: 1,
-      minWidth: 200,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: true,
     },
     {
       field: 'valueFormatter',
-      headerName: 'Value Formatter',
-      width: 180,
+      headerName: 'Formatter',
+      width: 200,
       sortable: true,
       filter: true,
       cellEditor: 'agSelectCellEditor',
@@ -253,8 +252,8 @@ export function ColumnsTab({
     },
     {
       field: 'cellRenderer',
-      headerName: 'Cell Renderer',
-      width: 160,
+      headerName: 'Renderer',
+      width: 140,
       sortable: true,
       filter: true,
       cellEditor: 'agSelectCellEditor',
@@ -347,41 +346,26 @@ export function ColumnsTab({
 
   return (
     <div className="h-full flex flex-col bg-background">
-      {/* Add Manual Column Section */}
-      <div className="p-4 border-b border-border flex-shrink-0">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-foreground">Add Manual Column</h3>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onClearAll}
-            disabled={columns.length === 0}
-            className="text-foreground hover:bg-muted hover:text-foreground"
-          >
-            Clear All
-          </Button>
-        </div>
-        <div className="flex items-end gap-3">
-          <div className="flex-1">
-            <Input
-              value={newColumn.field}
-              onChange={(e) => setNewColumn({ ...newColumn, field: e.target.value })}
-              placeholder="Field name"
-              className="h-9 bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          <div className="flex-1">
-            <Input
-              value={newColumn.header}
-              onChange={(e) => setNewColumn({ ...newColumn, header: e.target.value })}
-              placeholder="Header name"
-              className="h-9 bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
+      {/* Compact Add Manual Column Section */}
+      <div className="px-3 py-2 border-b border-border flex-shrink-0 bg-muted/30">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Add Manual Column</span>
+          <Input
+            value={newColumn.field}
+            onChange={(e) => setNewColumn({ ...newColumn, field: e.target.value })}
+            placeholder="Field"
+            className="h-7 text-xs bg-background border-border"
+          />
+          <Input
+            value={newColumn.header}
+            onChange={(e) => setNewColumn({ ...newColumn, header: e.target.value })}
+            placeholder="Header"
+            className="h-7 text-xs bg-background border-border"
+          />
           <select
             value={newColumn.type}
             onChange={(e) => setNewColumn({ ...newColumn, type: e.target.value as ColumnDefinition['cellDataType'] })}
-            className="h-9 px-3 border border-border bg-muted text-foreground rounded-md text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+            className="h-7 px-2 border border-border bg-background text-foreground rounded-md text-xs focus:border-primary focus:ring-1 focus:ring-primary"
           >
             <option value="text">Text</option>
             <option value="number">Number</option>
@@ -394,9 +378,20 @@ export function ColumnsTab({
             size="sm"
             onClick={handleAddColumn}
             disabled={!newColumn.field || !newColumn.header}
-            className="h-9 px-3 bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50"
+            className="h-7 w-7 p-0"
+            title="Add column"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+          <div className="flex-1" />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onClearAll}
+            disabled={columns.length === 0}
+            className="h-7 px-2 text-xs"
+          >
+            Clear All
           </Button>
         </div>
       </div>
@@ -410,8 +405,8 @@ export function ColumnsTab({
           onGridReady={onGridReady}
           onCellValueChanged={onCellValueChanged}
           animateRows={true}
-          headerHeight={36}
-          rowHeight={36}
+          headerHeight={32}
+          rowHeight={32}
           suppressMovableColumns={true}
           suppressCellFocus={true}
           suppressRowHoverHighlight={false}
