@@ -162,6 +162,10 @@ export const LOG_LEVEL = {
 } as const;
 
 // === Environment ===
+// Note: API URL resolution priority:
+// 1. OpenFin platform context (manifest.platform.context.apiUrl) - checked at runtime
+// 2. Environment variable (VITE_API_URL) - checked here
+// 3. Hardcoded default - http://localhost:3001
 export const ENV = {
   isDevelopment: import.meta.env.DEV,
   isProduction: import.meta.env.PROD,

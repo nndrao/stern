@@ -6,9 +6,42 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { buildUrl } from '../openfin/utils/openfinUtils';
 import { logger } from '@/utils/logger';
+import { getPlatformContext } from '@/openfin/utils/platformContext';
 
-// API base URL - defaults to same origin, port 3001
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// API base URL resolution priority:
+// 1. OpenFin platform context (manifest.platform.context.apiUrl)
+// 2. Environment variable (VITE_API_URL)
+// 3. Hardcoded default
+const DEFAULT_API_URL = 'http://localhost:3001';
+
+/**
+ * Get API base URL from various sources
+ */
+async function getApiBaseUrl(): Promise<string> {
+  try {
+    // Try to get from platform context first (OpenFin manifest)
+    const context = await getPlatformContext();
+    if (context.apiUrl) {
+      logger.info('Using API URL from platform context', { apiUrl: context.apiUrl }, 'apiClient');
+      return context.apiUrl;
+    }
+  } catch (error) {
+    logger.warn('Failed to get API URL from platform context', error, 'apiClient');
+  }
+
+  // Fall back to environment variable
+  if (import.meta.env.VITE_API_URL) {
+    logger.info('Using API URL from environment variable', { apiUrl: import.meta.env.VITE_API_URL }, 'apiClient');
+    return import.meta.env.VITE_API_URL;
+  }
+
+  // Fall back to hardcoded default
+  logger.info('Using default API URL', { apiUrl: DEFAULT_API_URL }, 'apiClient');
+  return DEFAULT_API_URL;
+}
+
+// Initialize with default, will be updated asynchronously
+let API_BASE_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
 
 /**
  * Create and configure axios instance
@@ -20,6 +53,33 @@ export const apiClient: AxiosInstance = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+/**
+ * Initialize API client with platform context
+ * Should be called early in app initialization
+ */
+export async function initializeApiClient(): Promise<void> {
+  try {
+    const apiUrl = await getApiBaseUrl();
+    API_BASE_URL = apiUrl;
+
+    // Update axios baseURL
+    apiClient.defaults.baseURL = `${apiUrl}/api/v1`;
+
+    logger.info('API client initialized', {
+      baseURL: apiClient.defaults.baseURL
+    }, 'apiClient');
+  } catch (error) {
+    logger.error('Failed to initialize API client', error, 'apiClient');
+  }
+}
+
+// Auto-initialize in OpenFin environment
+if (typeof window !== 'undefined' && window.fin) {
+  initializeApiClient().catch(error => {
+    logger.error('Auto-initialization of API client failed', error, 'apiClient');
+  });
+}
 
 /**
  * Request interceptor

@@ -56,10 +56,7 @@ interface FieldsTabProps {
   onSelectAllChange: (checked: boolean) => void;
   onClearAll: () => void;
   onInferFields?: () => void;
-  onSave: () => void;
-  onCancel: () => void;
   inferring?: boolean;
-  isEditMode?: boolean;
 }
 
 export function FieldsTab({
@@ -76,10 +73,7 @@ export function FieldsTab({
   onSelectAllChange,
   onClearAll,
   onInferFields,
-  onSave,
-  onCancel,
   inferring = false,
-  isEditMode = false
 }: FieldsTabProps) {
   // Convert FieldNode tree to TreeNode format
   const treeNodes = useMemo((): TreeNode[] => {
@@ -158,62 +152,54 @@ export function FieldsTab({
 
   return (
     <div className="h-full flex flex-col bg-background">
-      {/* Datasource Name at top */}
-      <div className="p-4 border-b border-border">
-        <Input
-          value={name}
-          readOnly
-          placeholder="Datasource Name"
-          className="text-lg font-semibold border-none shadow-none focus-visible:ring-0 px-0 bg-transparent cursor-default"
-        />
-      </div>
-
-      {/* Header */}
-      <div className="p-4 border-b border-border space-y-3">
+      {/* Compact Header */}
+      <div className="px-3 py-2 border-b border-border space-y-2">
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             placeholder="Search fields..."
             value={fieldSearchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-9"
+            className="pl-8 h-7 text-xs"
           />
         </div>
 
-        {/* Select All / Clear All */}
+        {/* Select All / Clear All - Compact */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Checkbox
               id="select-all"
               checked={selectAllIndeterminate ? 'indeterminate' : selectAllChecked}
               onCheckedChange={onSelectAllChange}
+              className="h-3.5 w-3.5"
             />
-            <label htmlFor="select-all" className="text-sm font-medium">
-              Select All Fields
+            <label htmlFor="select-all" className="text-xs font-medium">
+              Select All
             </label>
           </div>
 
           <div className="flex items-center gap-2">
-            <Badge variant="secondary">
-              {selectedFields.size} selected
+            <Badge variant="secondary" className="text-xs h-5 px-1.5">
+              {selectedFields.size}
             </Badge>
             <Button
               variant="ghost"
               size="sm"
               onClick={onClearAll}
               disabled={inferredFields.length === 0}
+              className="h-6 px-2 text-xs"
             >
-              Clear All
+              Clear
             </Button>
           </div>
         </div>
 
-        {/* Info */}
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertDescription className="text-xs">
-            Select fields to include as columns. Object fields show all nested properties.
+        {/* Info - Compact */}
+        <Alert className="py-1.5 px-2">
+          <Info className="h-3 w-3" />
+          <AlertDescription className="text-xs leading-tight">
+            Select fields to include as columns
           </AlertDescription>
         </Alert>
       </div>
@@ -223,9 +209,9 @@ export function FieldsTab({
         {/* Checkbox Tree */}
         <div className="flex-1 border-r border-border">
           <ScrollArea className="h-full">
-            <div className="p-4">
+            <div className="p-3">
               {filteredNodes.length === 0 ? (
-                <div className="text-center py-8 text-sm text-muted-foreground">
+                <div className="text-center py-6 text-xs text-muted-foreground">
                   No fields match your search
                 </div>
               ) : (
@@ -242,33 +228,33 @@ export function FieldsTab({
           </ScrollArea>
         </div>
 
-        {/* Selected Fields Sidebar */}
-        <div className="w-64 bg-muted/20 flex flex-col">
-          <div className="p-3 border-b border-border">
+        {/* Selected Fields Sidebar - Compact */}
+        <div className="w-56 bg-muted/20 flex flex-col">
+          <div className="px-2.5 py-2 border-b border-border">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Selected Fields
+                Selected
               </h4>
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs h-4 px-1.5">
                 {selectedFields.size}
               </Badge>
             </div>
           </div>
 
           <ScrollArea className="flex-1">
-            <div className="p-3">
+            <div className="p-2">
               {selectedFields.size === 0 ? (
-                <div className="text-center py-8 text-xs text-muted-foreground">
+                <div className="text-center py-6 text-xs text-muted-foreground">
                   No fields selected
                 </div>
               ) : (
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {Array.from(selectedFields)
                     .sort((a, b) => a.localeCompare(b))
                     .map(path => (
                       <div
                         key={path}
-                        className="text-xs font-mono py-1 px-2 bg-accent/50 rounded hover:bg-accent transition-colors"
+                        className="text-xs font-mono py-1 px-1.5 bg-accent/50 rounded hover:bg-accent transition-colors"
                       >
                         {path}
                       </div>
@@ -277,39 +263,6 @@ export function FieldsTab({
               )}
             </div>
           </ScrollArea>
-        </div>
-      </div>
-
-      {/* Bottom Action Bar */}
-      <div className="border-t border-border p-4 flex-shrink-0 bg-background dialog-footer">
-        <div className="flex gap-2 justify-between items-center">
-          <div className="text-sm text-muted-foreground">
-            {selectedFields.size} field{selectedFields.size !== 1 ? 's' : ''} selected
-          </div>
-          <div className="flex gap-2">
-            {onInferFields && (
-              <Button
-                onClick={onInferFields}
-                disabled={inferring}
-                variant="outline"
-              >
-                {inferring ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Inferring...
-                  </>
-                ) : (
-                  <>
-                    <Database className="mr-2 h-4 w-4" />
-                    Infer Fields
-                  </>
-                )}
-              </Button>
-            )}
-            <Button onClick={onSave} variant="default">
-              {isEditMode ? 'Update Datasource' : 'Create Datasource'}
-            </Button>
-          </div>
         </div>
       </div>
     </div>

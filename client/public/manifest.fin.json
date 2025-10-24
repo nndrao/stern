@@ -10,7 +10,12 @@
     "icon": "http://localhost:5173/star.svg",
     "autoShow": false,
     "providerUrl": "http://localhost:5173/platform/provider",
-    "preventQuitOnLastWindowClosed": true
+    "preventQuitOnLastWindowClosed": true,
+    "context": {
+      "apiUrl": "http://localhost:3001",
+      "environment": "local",
+      "description": "REST API endpoint for configuration service"
+    }
   },
   "desktopSettings": {
     "systemApps": {

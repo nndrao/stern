@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { ConnectionTab } from './ConnectionTab';
@@ -51,6 +52,10 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
   // Column state
   const [manualColumns, setManualColumns] = useState<ColumnDefinition[]>([]);
   const [fieldColumnOverrides, setFieldColumnOverrides] = useState<Record<string, Partial<ColumnDefinition>>>({});
+
+  // Track if field selections have changed (to show "Update Columns" button)
+  const [pendingFieldChanges, setPendingFieldChanges] = useState(false);
+  const [committedSelectedFields, setCommittedSelectedFields] = useState<Set<string>>(new Set());
 
   // Refs to track previous values and prevent infinite loops
   const previousInferredFieldsRef = useRef<string>('');
@@ -116,6 +121,7 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
       });
 
       setSelectedFields(selected);
+      setCommittedSelectedFields(selected);
       setFieldColumnOverrides(overrides);
     }
   }, []);
@@ -154,9 +160,56 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
 
   // Save inferred fields and columns back to config whenever they change
   useEffect(() => {
-    if (inferredFields.length > 0 || selectedFields.size > 0) {
+    if (inferredFields.length > 0 || committedSelectedFields.size > 0) {
       const inferredFieldsData = inferredFields.map(field => convertFieldNodeToInfo(field));
-      const columnsFromFields = buildColumnsFromFields();
+
+      // Build columns from COMMITTED selections only
+      const columnsFromFields = Array.from(committedSelectedFields).map(path => {
+        const override = fieldColumnOverrides[path] || {};
+        const fieldNode = findFieldByPath(path, inferredFields);
+        const mapFieldTypeToCellType = (type: string): ColumnDefinition['cellDataType'] => {
+          switch (type) {
+            case 'number': return 'number';
+            case 'boolean': return 'boolean';
+            case 'object': return 'object';
+            case 'date': return 'date';
+            default: return 'text';
+          }
+        };
+        const cellDataType = override.cellDataType || mapFieldTypeToCellType(fieldNode?.type || 'string');
+
+        const column: ColumnDefinition = {
+          field: path,
+          headerName: override.headerName || path.split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' '),
+          cellDataType: cellDataType,
+        };
+
+        // Apply overrides
+        if (override.valueFormatter) column.valueFormatter = override.valueFormatter;
+        if (override.cellRenderer) column.cellRenderer = override.cellRenderer;
+        if (override.width) column.width = override.width;
+        if (override.filter !== undefined) column.filter = override.filter;
+        if (override.sortable !== undefined) column.sortable = override.sortable;
+        if (override.resizable !== undefined) column.resizable = override.resizable;
+        if (override.hide !== undefined) column.hide = override.hide;
+        if (override.type) column.type = override.type;
+
+        // Apply type-specific defaults
+        if (cellDataType === 'number') {
+          column.type = 'numericColumn';
+          column.filter = 'agNumberColumnFilter';
+          if (!override.valueFormatter) column.valueFormatter = '2DecimalWithThousandSeparator';
+          if (!override.cellRenderer) column.cellRenderer = 'NumericCellRenderer';
+        }
+
+        if (cellDataType === 'date' || cellDataType === 'dateString') {
+          column.filter = 'agDateColumnFilter';
+          if (!override.valueFormatter) column.valueFormatter = 'YYYY-MM-DD HH:mm:ss';
+        }
+
+        return column;
+      });
+
       const allColumns = [...columnsFromFields, ...manualColumns];
 
       // Only update if values have actually changed (using refs to prevent infinite loops)
@@ -172,27 +225,14 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
         onChange('columnDefinitions', allColumns);
       }
     }
-  }, [inferredFields, selectedFields, manualColumns, fieldColumnOverrides, onChange]);
+  }, [inferredFields, committedSelectedFields, manualColumns, fieldColumnOverrides, onChange]);
 
-  // Ensure topics are set before save (for validation)
+  // Ensure manualTopics is always true (topics are always configured manually)
   useEffect(() => {
-    if (!config.manualTopics && config.websocketUrl) {
-      // Auto-generate topics if not in manual mode and they're missing
-      if (!config.listenerTopic || !config.requestMessage) {
-        const clientId = uuidv4();
-        const dataType = config.dataType || 'positions';
-        const messageRate = config.messageRate || 1000;
-        const batchSize = config.batchSize;
-
-        const listenerTopic = `/snapshot/${dataType}/${clientId}`;
-        const requestMessage = `/snapshot/${dataType}/${clientId}/${messageRate}${batchSize ? `/${batchSize}` : ''}`;
-
-        onChange('listenerTopic', listenerTopic);
-        onChange('requestMessage', requestMessage);
-        onChange('requestBody', config.requestBody || 'START');
-      }
+    if (config.manualTopics !== true) {
+      onChange('manualTopics', true);
     }
-  }, [config.manualTopics, config.websocketUrl, config.dataType, config.messageRate, config.batchSize, config.listenerTopic, config.requestMessage]);
+  }, [config.manualTopics, onChange]);
 
   const handleTestConnection = async () => {
     setTesting(true);
@@ -268,24 +308,13 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
       // Generate session ID for consistent UUID resolution
       const sessionId = uuidv4();
 
-      // Resolve topics with templates
+      // Resolve topics with templates (topics are always configured manually)
       let listenerTopic = config.listenerTopic || '';
       let requestMessage = config.requestMessage || '';
 
-      if (config.manualTopics) {
-        // Use manual topics with template resolution
-        listenerTopic = templateResolver.resolveTemplate(listenerTopic, sessionId);
-        requestMessage = templateResolver.resolveTemplate(requestMessage, sessionId);
-      } else {
-        // Auto-generate topics
-        const clientId = uuidv4();
-        const dataType = config.dataType || 'positions';
-        const messageRate = config.messageRate || 1000;
-        const batchSize = config.batchSize;
-
-        listenerTopic = `/snapshot/${dataType}/${clientId}`;
-        requestMessage = `/snapshot/${dataType}/${clientId}/${messageRate}${batchSize ? `/${batchSize}` : ''}`;
-      }
+      // Use manual topics with template resolution
+      listenerTopic = templateResolver.resolveTemplate(listenerTopic, sessionId);
+      requestMessage = templateResolver.resolveTemplate(requestMessage, sessionId);
 
       // Create provider with resolved topics
       const provider = new StompDatasourceProvider({
@@ -339,20 +368,7 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
       findObjectFields(fieldNodes);
       setExpandedFields(objectPaths);
 
-      // Auto-select all non-object leaf fields
-      const allLeafPaths = new Set<string>();
-      const collectLeafPaths = (fields: FieldNode[]) => {
-        fields.forEach(field => {
-          if (field.type !== 'object' || !field.children || field.children.length === 0) {
-            allLeafPaths.add(field.path);
-          }
-          if (field.children) {
-            collectLeafPaths(field.children);
-          }
-        });
-      };
-      collectLeafPaths(fieldNodes);
-      setSelectedFields(allLeafPaths);
+      // DO NOT auto-select fields - user must manually select them
 
       // Switch to Fields tab
       setActiveTab('fields');
@@ -404,6 +420,9 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
         }
       }
 
+      // Mark as having pending changes
+      setPendingFieldChanges(true);
+
       return newSelected;
     });
   };
@@ -437,14 +456,27 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
     } else {
       setSelectedFields(new Set());
     }
+    setPendingFieldChanges(true);
   };
 
   const handleClearAllFields = () => {
     setInferredFields([]);
     setSelectedFields(new Set());
+    setCommittedSelectedFields(new Set());
     setFieldSearchQuery('');
     setManualColumns([]);
     setFieldColumnOverrides({});
+    setPendingFieldChanges(false);
+  };
+
+  const handleUpdateColumns = () => {
+    // Commit the current field selections to columns
+    setCommittedSelectedFields(new Set(selectedFields));
+    setPendingFieldChanges(false);
+    toast({
+      title: 'Columns Updated',
+      description: `${selectedFields.size} field(s) will be used as columns`,
+    });
   };
 
   const buildColumnsFromFields = (): ColumnDefinition[] => {
@@ -509,23 +541,23 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
   return (
     <div className="h-full w-full flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full flex flex-col">
-        <TabsList className="grid w-full grid-cols-3 rounded-none h-12 bg-muted/50 border-b">
-          <TabsTrigger value="connection" className="rounded-none data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary">
+        <TabsList className="grid w-full grid-cols-3 rounded-none h-9 bg-muted/50 border-b">
+          <TabsTrigger value="connection" className="rounded-none text-xs data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary">
             Connection
           </TabsTrigger>
-          <TabsTrigger value="fields" className="rounded-none data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary">
+          <TabsTrigger value="fields" className="rounded-none text-xs data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary">
             <span>Fields</span>
             {inferredFields.length > 0 && (
-              <Badge variant="secondary" className="ml-2 h-5 px-2 text-xs">
+              <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-xs">
                 {inferredFields.length}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="columns" className="rounded-none data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary">
+          <TabsTrigger value="columns" className="rounded-none text-xs data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary">
             <span>Columns</span>
-            {(selectedFields.size + manualColumns.length) > 0 && (
-              <Badge variant="secondary" className="ml-2 h-5 px-2 text-xs">
-                {selectedFields.size + manualColumns.length}
+            {(committedSelectedFields.size + manualColumns.length) > 0 && (
+              <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-xs">
+                {committedSelectedFields.size + manualColumns.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -538,15 +570,6 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
               config={config}
               onChange={updateFormData}
               onNameChange={onNameChange}
-              onTest={handleTestConnection}
-              onInferFields={handleInferFields}
-              onSave={onSave}
-              onCancel={onCancel}
-              testing={testing}
-              inferring={inferring}
-              testResult={testResult}
-              testError={testError}
-              isEditMode={isEditMode}
             />
           </TabsContent>
 
@@ -565,32 +588,103 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
               onSelectAllChange={handleSelectAllChange}
               onClearAll={handleClearAllFields}
               onInferFields={handleInferFields}
-              onSave={onSave}
-              onCancel={onCancel}
               inferring={inferring}
-              isEditMode={isEditMode}
             />
           </TabsContent>
 
           <TabsContent value="columns" className="h-full overflow-hidden m-0">
             <ColumnsTab
               name={name}
-              selectedFields={selectedFields}
+              selectedFields={committedSelectedFields}
               inferredFields={inferredFields}
               manualColumns={manualColumns}
               fieldColumnOverrides={fieldColumnOverrides}
               onManualColumnsChange={setManualColumns}
               onFieldColumnOverridesChange={setFieldColumnOverrides}
-              onSave={onSave}
-              onCancel={onCancel}
               onClearAll={() => {
                 setSelectedFields(new Set());
+                setCommittedSelectedFields(new Set());
                 setManualColumns([]);
                 setFieldColumnOverrides({});
+                setPendingFieldChanges(false);
               }}
-              isEditMode={isEditMode}
             />
           </TabsContent>
+        </div>
+
+        {/* Unified footer - Compact */}
+        <div className="sticky bottom-0 flex items-center justify-between px-3 py-2.5 border-t bg-background">
+          <div className="flex items-center gap-2">
+            {/* Connection tab buttons */}
+            {activeTab === 'connection' && (
+              <Button
+                onClick={handleTestConnection}
+                disabled={testing || !config.websocketUrl}
+                variant="outline"
+                size="sm"
+                className="h-7 px-3 text-xs"
+              >
+                {testing ? 'Testing...' : 'Test Connection'}
+              </Button>
+            )}
+
+            {/* Fields tab buttons */}
+            {activeTab === 'fields' && (
+              <>
+                {inferredFields.length === 0 && (
+                  <Button
+                    onClick={handleInferFields}
+                    disabled={inferring || !config.websocketUrl}
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-3 text-xs"
+                  >
+                    {inferring ? 'Inferring...' : 'Infer Fields'}
+                  </Button>
+                )}
+                {inferredFields.length > 0 && pendingFieldChanges && (
+                  <Button
+                    onClick={handleUpdateColumns}
+                    variant="default"
+                    size="sm"
+                    className="h-7 px-3 text-xs"
+                  >
+                    Update Columns
+                  </Button>
+                )}
+              </>
+            )}
+
+            {/* Columns tab buttons */}
+            {activeTab === 'columns' && (
+              <Button
+                onClick={() => {
+                  setSelectedFields(new Set());
+                  setManualColumns([]);
+                  setFieldColumnOverrides({});
+                }}
+                variant="outline"
+                size="sm"
+                className="h-7 px-3 text-xs"
+              >
+                Clear All
+              </Button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={onCancel}
+              variant="ghost"
+              size="sm"
+              className="h-7 px-3 text-xs text-foreground hover:bg-muted hover:text-foreground"
+            >
+              Cancel
+            </Button>
+            <Button onClick={onSave} variant="default" size="sm" className="h-7 px-3 text-xs">
+              {isEditMode ? 'Update Datasource' : 'Create Datasource'}
+            </Button>
+          </div>
         </div>
       </Tabs>
     </div>

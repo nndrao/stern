@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { init } from '@openfin/workspace-platform';
 import { OpenFinWorkspaceProvider } from '../services/OpenfinWorkspaceProvider';
 import { useOpenfinTheme } from '../hooks/useOpenfinTheme';
-import { Sidebar } from '@/components/provider/Sidebar';
+import { TopTabBar } from '@/components/provider/TopTabBar';
 import { DockConfigEditor } from '@/components/provider/DockConfigEditor';
 import { DataProviderEditor } from '@/components/provider/DataProviderEditor';
 import { Toaster } from '@/components/ui/toaster';
@@ -34,7 +34,6 @@ export default function Provider() {
   const isInitialized = useRef(false);
   const [isPlatformReady, setIsPlatformReady] = useState(false);
   const [activeTab, setActiveTab] = useState('dock');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     // Check if we're in OpenFin environment and prevent double initialization
@@ -65,13 +64,27 @@ export default function Provider() {
       const iconUrl = manifest.platform?.icon || buildUrl("/star.svg");
       logger.info(`[DOCK_ICON] Platform icon URL: "${iconUrl}"`, undefined, 'Provider');
 
+      // Log platform context if available
+      if (manifest.platform?.context) {
+        logger.info('[PLATFORM CONTEXT] Found platform context in manifest', manifest.platform.context, 'Provider');
+        if (manifest.platform.context.apiUrl) {
+          logger.info(`[API CONFIG] API URL from manifest: ${manifest.platform.context.apiUrl}`, undefined, 'Provider');
+        }
+        if (manifest.platform.context.environment) {
+          logger.info(`[API CONFIG] Environment: ${manifest.platform.context.environment}`, undefined, 'Provider');
+        }
+      } else {
+        logger.warn('[PLATFORM CONTEXT] No platform context found in manifest, will use defaults', undefined, 'Provider');
+      }
+
       return {
         platformSettings: {
           id: manifest.platform?.uuid || "stern-platform",
           title: manifest.shortcut?.name || "Stern Trading Platform",
           icon: iconUrl
         },
-        customSettings: manifest.customSettings || { apps: [] }
+        customSettings: manifest.customSettings || { apps: [] },
+        platformContext: manifest.platform?.context || {}
       };
     } catch (error) {
       logger.error('Failed to get manifest settings', error, 'Provider');
@@ -82,7 +95,8 @@ export default function Provider() {
           title: "Stern Trading Platform",
           icon: buildUrl("/star.svg")  // SVG for windows (dock converts to PNG automatically)
         },
-        customSettings: { apps: [] }
+        customSettings: { apps: [] },
+        platformContext: {}
       };
     }
   }
@@ -353,12 +367,10 @@ export default function Provider() {
     }, []);
 
     return (
-      <div className="flex h-screen bg-background text-foreground">
-        <Sidebar
+      <div className="flex flex-col h-screen bg-background text-foreground p-2.5">
+        <TopTabBar
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          collapsed={sidebarCollapsed}
-          onCollapsedChange={setSidebarCollapsed}
         />
         <main className="flex-1 overflow-hidden">
           {activeTab === 'dock' && <DockConfigEditor />}
