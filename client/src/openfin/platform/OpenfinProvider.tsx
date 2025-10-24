@@ -64,13 +64,27 @@ export default function Provider() {
       const iconUrl = manifest.platform?.icon || buildUrl("/star.svg");
       logger.info(`[DOCK_ICON] Platform icon URL: "${iconUrl}"`, undefined, 'Provider');
 
+      // Log platform context if available
+      if (manifest.platform?.context) {
+        logger.info('[PLATFORM CONTEXT] Found platform context in manifest', manifest.platform.context, 'Provider');
+        if (manifest.platform.context.apiUrl) {
+          logger.info(`[API CONFIG] API URL from manifest: ${manifest.platform.context.apiUrl}`, undefined, 'Provider');
+        }
+        if (manifest.platform.context.environment) {
+          logger.info(`[API CONFIG] Environment: ${manifest.platform.context.environment}`, undefined, 'Provider');
+        }
+      } else {
+        logger.warn('[PLATFORM CONTEXT] No platform context found in manifest, will use defaults', undefined, 'Provider');
+      }
+
       return {
         platformSettings: {
           id: manifest.platform?.uuid || "stern-platform",
           title: manifest.shortcut?.name || "Stern Trading Platform",
           icon: iconUrl
         },
-        customSettings: manifest.customSettings || { apps: [] }
+        customSettings: manifest.customSettings || { apps: [] },
+        platformContext: manifest.platform?.context || {}
       };
     } catch (error) {
       logger.error('Failed to get manifest settings', error, 'Provider');
@@ -81,7 +95,8 @@ export default function Provider() {
           title: "Stern Trading Platform",
           icon: buildUrl("/star.svg")  // SVG for windows (dock converts to PNG automatically)
         },
-        customSettings: { apps: [] }
+        customSettings: { apps: [] },
+        platformContext: {}
       };
     }
   }
