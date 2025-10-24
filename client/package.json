@@ -48,6 +48,7 @@
     "@radix-ui/react-tooltip": "^1.1.2",
     "@stern/shared-types": "file:../shared",
     "@stomp/stompjs": "^7.2.0",
+    "@tanstack/react-query": "^5.90.5",
     "@types/openfin": "^51.0.6",
     "ag-grid-community": "^34.2.0",
     "ag-grid-enterprise": "^34.2.0",

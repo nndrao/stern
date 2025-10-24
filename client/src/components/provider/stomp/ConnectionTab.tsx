@@ -17,15 +17,6 @@ interface ConnectionTabProps {
   config: Partial<StompProviderConfig>;
   onChange: (updates: Partial<StompProviderConfig>) => void;
   onNameChange: (name: string) => void;
-  onTest: () => void;
-  onInferFields: () => void;
-  onSave: () => void;
-  onCancel: () => void;
-  testing: boolean;
-  inferring: boolean;
-  testResult: any;
-  testError: string;
-  isEditMode?: boolean;
 }
 
 export function ConnectionTab({
@@ -33,15 +24,6 @@ export function ConnectionTab({
   config,
   onChange,
   onNameChange,
-  onTest,
-  onInferFields,
-  onSave,
-  onCancel,
-  testing,
-  inferring,
-  testResult,
-  testError,
-  isEditMode = false
 }: ConnectionTabProps) {
   const handleChange = (field: keyof StompProviderConfig) => (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange({ [field]: e.target.value });
@@ -100,118 +82,41 @@ export function ConnectionTab({
             </div>
           </div>
 
-          {/* REQUEST CONFIGURATION - AGV3 Style */}
+          {/* TOPIC CONFIGURATION - AGV3 Style */}
           <div>
             <h3 className="text-xs font-semibold mb-4 text-muted-foreground uppercase tracking-wider">
-              REQUEST CONFIGURATION
+              TOPIC CONFIGURATION
             </h3>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="data-type" className="text-sm font-normal text-foreground mb-2">Data Type *</Label>
-                  <select
-                    id="data-type"
-                    value={config.dataType || 'positions'}
-                    onChange={handleSelectChange('dataType')}
-                    className="mt-1.5 w-full h-10 rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-[#1a1a1a]"
-                  >
-                    <option value="positions">Positions</option>
-                    <option value="trades">Trades</option>
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="message-rate" className="text-sm font-normal text-foreground mb-2">Message Rate *</Label>
-                  <div className="relative mt-1.5">
-                    <Input
-                      id="message-rate"
-                      type="number"
-                      value={config.messageRate || 1000}
-                      onChange={handleNumberChange('messageRate')}
-                      placeholder="1000"
-                      min="100"
-                      max="50000"
-                      className="pr-16 bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">msg/s</span>
-                  </div>
-                </div>
+              <div>
+                <Label htmlFor="listener-topic" className="text-sm font-normal text-foreground mb-2">Listener Topic *</Label>
+                <Input
+                  id="listener-topic"
+                  value={config.listenerTopic || ''}
+                  onChange={handleChange('listenerTopic')}
+                  placeholder="/snapshot/positions/[client-id]"
+                  className="mt-1.5 font-mono text-sm bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
+                />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="batch-size" className="text-sm font-normal text-foreground mb-2">Batch Size (optional)</Label>
-                  <Input
-                    id="batch-size"
-                    type="number"
-                    value={config.batchSize || ''}
-                    onChange={handleNumberChange('batchSize')}
-                    placeholder="Auto (rate/10)"
-                    min="10"
-                    max="1000"
-                    className="mt-1.5 bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
-                  />
-                </div>
+              <div>
+                <Label htmlFor="request-message" className="text-sm font-normal text-foreground mb-2">Trigger Topic *</Label>
+                <Input
+                  id="request-message"
+                  value={config.requestMessage || ''}
+                  onChange={handleChange('requestMessage')}
+                  placeholder="/snapshot/positions/[client-id]/1000/50"
+                  className="mt-1.5 font-mono text-sm bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
+                />
               </div>
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="manual-topics"
-                    checked={config.manualTopics || false}
-                    onCheckedChange={handleCheckboxChange('manualTopics')}
-                    className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                  />
-                  <label
-                    htmlFor="manual-topics"
-                    className="text-sm font-normal text-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    Configure topics manually
-                  </label>
+              <div className="rounded-lg bg-muted/30 border border-border p-3">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Template Variables</Label>
+                <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  <div><code className="bg-background px-1 py-0.5 rounded text-blue-400">[variable]</code> - Replaced with variable-UUID</div>
+                  <div><code className="bg-background px-1 py-0.5 rounded text-blue-400">{`{datasource.variable}`}</code> - Replaced with datasource value</div>
                 </div>
-
-                {config.manualTopics ? (
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="listener-topic" className="text-sm font-normal text-foreground mb-2">Listener Topic</Label>
-                      <Input
-                        id="listener-topic"
-                        value={config.listenerTopic || ''}
-                        onChange={handleChange('listenerTopic')}
-                        placeholder="/snapshot/positions/[client-id]"
-                        className="mt-1.5 font-mono text-sm bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="request-message" className="text-sm font-normal text-foreground mb-2">Trigger Topic</Label>
-                      <Input
-                        id="request-message"
-                        value={config.requestMessage || ''}
-                        onChange={handleChange('requestMessage')}
-                        placeholder="/snapshot/positions/[client-id]/1000/50"
-                        className="mt-1.5 font-mono text-sm bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                    <div className="rounded-lg bg-muted/30 border border-border p-3">
-                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Template Variables</Label>
-                      <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                        <div><code className="bg-background px-1 py-0.5 rounded text-blue-400">[variable]</code> - Replaced with variable-UUID</div>
-                        <div><code className="bg-background px-1 py-0.5 rounded text-blue-400">{`{datasource.variable}`}</code> - Replaced with datasource value</div>
-                      </div>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Example: <code className="bg-background px-1 py-0.5 rounded text-blue-400">{`{AppVariables.ds.Environment}`}</code> → production
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-lg bg-muted/30 border border-border p-3">
-                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Auto-Generated Configuration</Label>
-                    <div className="mt-2 space-y-1 font-mono text-xs text-foreground">
-                      <div>Listener: /snapshot/{config.dataType || 'positions'}/[auto-generated-id]</div>
-                      <div>Trigger: /snapshot/{config.dataType || 'positions'}/[auto-generated-id]/{config.messageRate || 1000}{config.batchSize ? `/${config.batchSize}` : ''}</div>
-                    </div>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      A unique client ID will be generated automatically on each connection
-                    </p>
-                  </div>
-                )}
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Example: <code className="bg-background px-1 py-0.5 rounded text-blue-400">{`{AppVariables.ds.Environment}`}</code> → production
+                </p>
               </div>
             </div>
           </div>
@@ -280,52 +185,6 @@ export function ConnectionTab({
 
         </div>
       </ScrollArea>
-
-      {/* Bottom Action Bar - AGV3 Style */}
-      <div className="border-t border-border p-4 flex-shrink-0 bg-background dialog-footer">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={onTest}
-              disabled={testing || !config.websocketUrl}
-              variant="outline"
-            >
-              {testing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Testing...
-                </>
-              ) : (
-                <>
-                  <PlayCircle className="mr-2 h-4 w-4" />
-                  Test Connection
-                </>
-              )}
-            </Button>
-
-            {testResult?.success && (
-              <div className="flex items-center text-sm text-green-600">
-                <CheckCircle2 className="mr-1.5 h-4 w-4" />
-                Connected successfully
-              </div>
-            )}
-
-            {testError && (
-              <div className="flex items-center text-sm text-red-600">
-                <AlertCircle className="mr-1.5 h-4 w-4" />
-                <span className="line-clamp-1">{testError}</span>
-              </div>
-            )}
-          </div>
-
-          <Button
-            onClick={onSave}
-            variant="default"
-          >
-            {isEditMode ? 'Update Datasource' : 'Create Datasource'}
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }

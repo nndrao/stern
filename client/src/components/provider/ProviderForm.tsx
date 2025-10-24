@@ -3,7 +3,7 @@
  * Form for editing DataProvider configurations with protocol-specific fields
  */
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,14 +11,20 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
-import { useDataProviderStore } from '@/stores/dataProviderStore';
+import {
+  useCreateDataProvider,
+  useUpdateDataProvider,
+  useDeleteDataProvider,
+  useCloneDataProvider,
+  useSetDefaultProvider
+} from '@/hooks/useDataProviderQueries';
 import {
   ProviderType,
   PROVIDER_TYPES,
@@ -27,70 +33,103 @@ import {
   WebSocketProviderConfig,
   SocketIOProviderConfig,
   MockProviderConfig,
-  getDefaultProviderConfig
+  DataProviderConfig
 } from '@stern/shared-types';
 import { StompConfigurationForm } from './stomp/StompConfigurationForm';
 
 interface ProviderFormProps {
   userId: string;
-  onSave: () => void;
-  onCancel: () => void;
+  provider: DataProviderConfig;
+  onProviderChange: (provider: DataProviderConfig) => void;
+  onClose: () => void;
 }
 
-export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, onSave, onCancel }) => {
-  const store = useDataProviderStore();
-  const { currentProvider, updateCurrentProvider, validationResult } = store;
+export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, provider, onProviderChange, onClose }) => {
+  const { toast } = useToast();
+  const [isDirty, setIsDirty] = useState(false);
 
-  if (!currentProvider) {
-    return null;
-  }
+  // React Query mutations
+  const createMutation = useCreateDataProvider();
+  const updateMutation = useUpdateDataProvider();
 
-  const handleSave = () => {
+  const handleSave = useCallback(async () => {
     console.log('[ProviderForm] Save button clicked');
-    onSave();
-  };
 
-  const handleFieldChange = (field: string, value: any) => {
-    updateCurrentProvider({ [field]: value });
-  };
+    // Validation
+    if (!provider.name || provider.name.trim() === '') {
+      toast({
+        title: 'Validation Failed',
+        description: 'Datasource name is required',
+        variant: 'destructive'
+      });
+      return;
+    }
 
-  const handleConfigChange = (field: string, value: any) => {
-    updateCurrentProvider({
+    try {
+      if (provider.providerId) {
+        // Update existing
+        await updateMutation.mutateAsync({ providerId: provider.providerId, updates: provider, userId });
+        toast({
+          title: 'Provider Updated',
+          description: `${provider.name} has been updated successfully`
+        });
+      } else {
+        // Create new
+        const created = await createMutation.mutateAsync({ provider, userId });
+        // Update local provider with new providerId
+        onProviderChange({ ...provider, providerId: created.providerId });
+        toast({
+          title: 'Provider Created',
+          description: `${provider.name} has been created successfully`
+        });
+      }
+      setIsDirty(false);
+    } catch (error: any) {
+      toast({
+        title: 'Save Failed',
+        description: error.message || 'Failed to save provider',
+        variant: 'destructive'
+      });
+    }
+  }, [provider, userId, createMutation, updateMutation, onProviderChange, toast]);
+
+  const handleFieldChange = useCallback((field: string, value: any) => {
+    onProviderChange({ ...provider, [field]: value });
+    setIsDirty(true);
+  }, [provider, onProviderChange]);
+
+  const handleConfigChange = useCallback((field: string, value: any) => {
+    onProviderChange({
+      ...provider,
       config: {
-        ...currentProvider.config,
+        ...provider.config,
         [field]: value
       }
     });
-  };
+    setIsDirty(true);
+  }, [provider, onProviderChange]);
 
-  const handleProviderTypeChange = (newType: ProviderType) => {
-    updateCurrentProvider({
-      providerType: newType,
-      config: getDefaultProviderConfig(newType) as any
-    });
-  };
-
-  const handleTagsChange = (tagsString: string) => {
+  const handleTagsChange = useCallback((tagsString: string) => {
     const tags = tagsString.split(',').map(t => t.trim()).filter(t => t.length > 0);
     handleFieldChange('tags', tags);
-  };
+  }, [handleFieldChange]);
 
   // Determine if we're in edit mode (has providerId) or create mode (no providerId)
-  const isEditMode = Boolean(currentProvider.providerId);
+  const isEditMode = Boolean(provider.providerId);
 
   return (
     <div className="flex flex-col h-full">
       {/* Main content area - STOMP goes straight to tabs */}
       <div className="flex-1 overflow-hidden">
-        {currentProvider.providerType === PROVIDER_TYPES.STOMP ? (
+        {provider.providerType === PROVIDER_TYPES.STOMP ? (
           /* Enhanced STOMP Configuration with full 3-tab interface */
           <StompConfigurationForm
-            name={currentProvider.name}
-            config={currentProvider.config as StompProviderConfig}
+            name={provider.name}
+            config={provider.config as StompProviderConfig}
             onChange={handleConfigChange}
             onNameChange={(name) => handleFieldChange('name', name)}
             onSave={handleSave}
-            onCancel={onCancel}
+            onCancel={onClose}
             isEditMode={isEditMode}
           />
         ) : (
@@ -98,7 +137,7 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, onSave, onCa
             {/* Header with datasource name for non-STOMP */}
             <div className="p-4 border-b border-[#3a3a3a]">
               <Input
-                value={currentProvider.name}
+                value={provider.name}
                 onChange={(e) => handleFieldChange('name', e.target.value)}
                 placeholder="Datasource Name"
                 className="text-lg font-semibold border-none shadow-none focus-visible:ring-0 px-0 bg-transparent text-white"
@@ -118,7 +157,7 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, onSave, onCa
                         <Label htmlFor="description">Description</Label>
                         <Textarea
                           id="description"
-                          value={currentProvider.description || ''}
+                          value={provider.description || ''}
                           onChange={(e) => handleFieldChange('description', e.target.value)}
                           placeholder="Optional description of this provider"
                           rows={3}
@@ -129,7 +168,7 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, onSave, onCa
                         <Label htmlFor="tags">Tags (comma-separated)</Label>
                         <Input
                           id="tags"
-                          value={currentProvider.tags?.join(', ') || ''}
+                          value={provider.tags?.join(', ') || ''}
                           onChange={(e) => handleTagsChange(e.target.value)}
                           placeholder="e.g., trading, real-time, production"
                         />
@@ -142,7 +181,7 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, onSave, onCa
                     <CardHeader>
                       <CardTitle>Connection Configuration</CardTitle>
                       <CardDescription>
-                        {currentProvider.providerType.toUpperCase()} protocol settings
+                        {provider.providerType.toUpperCase()} protocol settings
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -153,60 +192,60 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, onSave, onCa
                         </TabsList>
 
                         <TabsContent value="connection" className="space-y-4 mt-4">
-                          {currentProvider.providerType === PROVIDER_TYPES.REST && (
+                          {provider.providerType === PROVIDER_TYPES.REST && (
                             <RestConfigForm
-                              config={currentProvider.config as RestProviderConfig}
+                              config={provider.config as RestProviderConfig}
                               onChange={handleConfigChange}
                             />
                           )}
 
-                          {currentProvider.providerType === PROVIDER_TYPES.WEBSOCKET && (
+                          {provider.providerType === PROVIDER_TYPES.WEBSOCKET && (
                             <WebSocketConfigForm
-                              config={currentProvider.config as WebSocketProviderConfig}
+                              config={provider.config as WebSocketProviderConfig}
                               onChange={handleConfigChange}
                             />
                           )}
 
-                          {currentProvider.providerType === PROVIDER_TYPES.SOCKETIO && (
+                          {provider.providerType === PROVIDER_TYPES.SOCKETIO && (
                             <SocketIOConfigForm
-                              config={currentProvider.config as SocketIOProviderConfig}
+                              config={provider.config as SocketIOProviderConfig}
                               onChange={handleConfigChange}
                             />
                           )}
 
-                          {currentProvider.providerType === PROVIDER_TYPES.MOCK && (
+                          {provider.providerType === PROVIDER_TYPES.MOCK && (
                             <MockConfigForm
-                              config={currentProvider.config as MockProviderConfig}
+                              config={provider.config as MockProviderConfig}
                               onChange={handleConfigChange}
                             />
                           )}
                         </TabsContent>
 
                         <TabsContent value="advanced" className="space-y-4 mt-4">
-                          {currentProvider.providerType === PROVIDER_TYPES.STOMP && (
+                          {provider.providerType === PROVIDER_TYPES.STOMP && (
                             <StompAdvancedForm
-                              config={currentProvider.config as StompProviderConfig}
+                              config={provider.config as StompProviderConfig}
                               onChange={handleConfigChange}
                             />
                           )}
 
-                          {currentProvider.providerType === PROVIDER_TYPES.REST && (
+                          {provider.providerType === PROVIDER_TYPES.REST && (
                             <RestAdvancedForm
-                              config={currentProvider.config as RestProviderConfig}
+                              config={provider.config as RestProviderConfig}
                               onChange={handleConfigChange}
                             />
                           )}
 
-                          {currentProvider.providerType === PROVIDER_TYPES.WEBSOCKET && (
+                          {provider.providerType === PROVIDER_TYPES.WEBSOCKET && (
                             <WebSocketAdvancedForm
-                              config={currentProvider.config as WebSocketProviderConfig}
+                              config={provider.config as WebSocketProviderConfig}
                               onChange={handleConfigChange}
                             />
                           )}
 
-                          {currentProvider.providerType === PROVIDER_TYPES.SOCKETIO && (
+                          {provider.providerType === PROVIDER_TYPES.SOCKETIO && (
                             <SocketIOAdvancedForm
-                              config={currentProvider.config as SocketIOProviderConfig}
+                              config={provider.config as SocketIOProviderConfig}
                               onChange={handleConfigChange}
                             />
                           )}
@@ -220,14 +259,14 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, onSave, onCa
 
             {/* Bottom Action Bar for non-STOMP */}
             <div className="border-t border-[#3a3a3a] p-4 flex items-center justify-end gap-3 bg-[#1a1a1a]">
-              <Button variant="outline" onClick={onCancel}>
+              <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
               <Button
-                onClick={onSave}
-                disabled={!validationResult?.isValid}
+                onClick={handleSave}
+                disabled={createMutation.isPending || updateMutation.isPending}
               >
-                Update Datasource
+                {createMutation.isPending || updateMutation.isPending ? 'Saving...' : (isEditMode ? 'Update Datasource' : 'Create Datasource')}
               </Button>
             </div>
           </div>

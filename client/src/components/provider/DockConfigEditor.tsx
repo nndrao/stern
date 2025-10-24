@@ -18,8 +18,6 @@ import {
   Plus,
   Trash2,
   Copy,
-  Undo,
-  Redo,
   Eye,
   AlertCircle
 } from 'lucide-react';
@@ -27,16 +25,80 @@ import {
 import { TreeView } from './TreeView';
 import { PropertiesPanel } from './PropertiesPanel';
 import { IconPicker } from './IconPicker';
-import { DockConfiguration, createMenuItem, validateDockConfiguration } from '@/openfin/types/dockConfig';
-import { useDockConfigStore } from '@/stores/dockConfigStore';
+import { DockConfiguration, DockMenuItem, createMenuItem, validateDockConfiguration, createDockConfiguration } from '@/openfin/types/dockConfig';
+import { useDockConfig, useSaveDockConfig } from '@/hooks/useDockConfigQueries';
 import { useOpenFinDock } from '@/openfin/hooks/useOpenfinWorkspace';
 import { useOpenfinTheme } from '@/openfin/hooks/useOpenfinTheme';
 import '@/utils/testApi'; // Import test utility for debugging
 import { logger } from '@/utils/logger';
+import { COMPONENT_SUBTYPES } from '@stern/shared-types';
 
 interface DockConfigEditorProps {
   userId?: string;
   appId?: string;
+}
+
+// Helper: Find menu item by ID recursively
+function findMenuItem(items: DockMenuItem[], id: string): DockMenuItem | null {
+  for (const item of items) {
+    if (item.id === id) return item;
+    if (item.children) {
+      const found = findMenuItem(item.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// Helper: Update menu item recursively
+function updateMenuItemRecursive(items: DockMenuItem[], id: string, updates: Partial<DockMenuItem>): DockMenuItem[] {
+  return items.map(item => {
+    if (item.id === id) {
+      return { ...item, ...updates };
+    }
+    if (item.children) {
+      return {
+        ...item,
+        children: updateMenuItemRecursive(item.children, id, updates)
+      };
+    }
+    return item;
+  });
+}
+
+// Helper: Delete menu item recursively
+function deleteMenuItemRecursive(items: DockMenuItem[], id: string): DockMenuItem[] {
+  const result: DockMenuItem[] = [];
+  for (const item of items) {
+    if (item.id !== id) {
+      if (item.children) {
+        result.push({
+          ...item,
+          children: deleteMenuItemRecursive(item.children, id)
+        });
+      } else {
+        result.push(item);
+      }
+    }
+  }
+  return result;
+}
+
+// Helper: Add child to item recursively
+function addChildToItem(item: DockMenuItem, parentId: string, child: DockMenuItem): DockMenuItem {
+  if (item.id === parentId) {
+    return {
+      ...item,
+      children: [...(item.children || []), child]
+    };
+  }
+  if (item.children) {
+    return {
+      ...item,
+      children: item.children.map(childItem => addChildToItem(childItem, parentId, child))
+    };
+  }
+  return item;
 }
 
 export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
@@ -45,7 +107,15 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
 }) => {
   const { toast } = useToast();
   const openFinDock = useOpenFinDock();
-  const store = useDockConfigStore();
+
+  // React Query hooks
+  const { data: loadedConfig, isLoading, error: loadError } = useDockConfig(userId);
+  const saveMutation = useSaveDockConfig();
+
+  // UI state
+  const [currentConfig, setCurrentConfig] = useState<DockConfiguration | null>(null);
+  const [selectedNode, setSelectedNode] = useState<DockMenuItem | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
 
   // Sync OpenFin platform theme with React theme provider
   useOpenfinTheme();
@@ -53,14 +123,21 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const [iconPickerCallback, setIconPickerCallback] = useState<((icon: string) => void) | null>(null);
 
-  // Load configuration on mount
+  // Sync loaded config to local state
   useEffect(() => {
-    store.loadConfig(userId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+    if (loadedConfig) {
+      setCurrentConfig(loadedConfig);
+      setIsDirty(false);
+    } else if (!isLoading && !loadedConfig) {
+      // No config found, create new one
+      const newConfig = createDockConfiguration(userId, appId) as DockConfiguration;
+      setCurrentConfig(newConfig);
+      setIsDirty(true);
+    }
+  }, [loadedConfig, isLoading, userId, appId]);
 
+  // Auto-save draft every 30 seconds
   const handleSaveDraft = useCallback(() => {
-    const currentConfig = store.currentConfig;
     if (currentConfig) {
       localStorage.setItem('dock-config-draft', JSON.stringify(currentConfig));
       toast({
@@ -68,28 +145,22 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
         description: 'Your changes have been saved locally',
       });
     }
-    // Note: Intentionally not including store.currentConfig in deps to avoid infinite loops
-    // We read the latest value directly from the store closure
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [currentConfig, toast]);
 
-  // Auto-save draft every 30 seconds
   useEffect(() => {
-    if (!store.isDirty) return;
+    if (!isDirty) return;
 
     const timer = setTimeout(() => {
       handleSaveDraft();
     }, 30000);
 
     return () => clearTimeout(timer);
-    // Only re-run when isDirty changes, not when config changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.isDirty]);
+  }, [isDirty, handleSaveDraft]);
 
   const handleSave = useCallback(async () => {
     logger.debug('Save button clicked', undefined, 'DockConfigEditor');
 
-    if (!store.currentConfig) {
+    if (!currentConfig) {
       logger.error('No current config available', undefined, 'DockConfigEditor');
       toast({
         title: 'Error',
@@ -100,7 +171,7 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
     }
 
     // Validate configuration before saving
-    const validation = validateDockConfiguration(store.currentConfig);
+    const validation = validateDockConfiguration(currentConfig);
     logger.debug('Validation result', validation, 'DockConfigEditor');
 
     if (!validation.isValid) {
@@ -113,19 +184,16 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
       return;
     }
 
-    const menuItemCount = store.currentConfig.config?.menuItems?.length || 0;
-    const configName = store.currentConfig.name;
+    const menuItemCount = currentConfig.config?.menuItems?.length || 0;
+    const configName = currentConfig.name;
 
     try {
-      logger.info('Calling store.saveConfig()', undefined, 'DockConfigEditor');
-      await store.saveConfig();
+      logger.info('Saving configuration...', undefined, 'DockConfigEditor');
 
-      // Check if save actually succeeded by checking the error state
-      if (store.error) {
-        throw new Error(store.error);
-      }
+      await saveMutation.mutateAsync({ userId, config: currentConfig });
 
       logger.info('Save completed successfully', undefined, 'DockConfigEditor');
+      setIsDirty(false);
 
       // Reload the dock to show the updated configuration
       if (window.fin) {
@@ -133,13 +201,11 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
           logger.info('Updating dock with new configuration...', undefined, 'DockConfigEditor');
           const dock = await import('@/openfin/platform/openfinDock');
 
-          if (store.currentConfig) {
-            // Use updateConfig for efficient update (no deregister/register cycle)
-            await dock.updateConfig({
-              menuItems: store.currentConfig.config.menuItems
-            });
-            logger.info('Dock updated successfully', undefined, 'DockConfigEditor');
-          }
+          // Use updateConfig for efficient update (no deregister/register cycle)
+          await dock.updateConfig({
+            menuItems: currentConfig.config.menuItems
+          });
+          logger.info('Dock updated successfully', undefined, 'DockConfigEditor');
         } catch (dockError) {
           logger.error('Failed to update dock', dockError, 'DockConfigEditor');
           // If update fails, try full reload as fallback
@@ -167,44 +233,87 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
         variant: 'destructive'
       });
     }
-  }, [store, toast]);
+  }, [currentConfig, saveMutation, userId, toast]);
 
   const handleAddMenuItem = useCallback(() => {
-    const parent = store.selectedNode;
-    store.addMenuItem(parent || undefined);
-  }, [store]);
+    if (!currentConfig) return;
+
+    const newItem = createMenuItem();
+    let newMenuItems = [...(currentConfig.config.menuItems || [])];
+
+    if (selectedNode) {
+      // Add as child
+      newMenuItems = newMenuItems.map(menuItem =>
+        addChildToItem(menuItem, selectedNode.id, newItem)
+      );
+    } else {
+      // Add to root
+      newMenuItems.push(newItem);
+    }
+
+    setCurrentConfig({
+      ...currentConfig,
+      config: {
+        ...currentConfig.config,
+        menuItems: newMenuItems
+      }
+    });
+    setIsDirty(true);
+  }, [currentConfig, selectedNode]);
 
   const handleDeleteMenuItem = useCallback(() => {
-    if (store.selectedNode) {
-      store.deleteMenuItem(store.selectedNode.id);
-      toast({
-        title: 'Item deleted',
-        description: 'Menu item has been removed',
-      });
-    }
-  }, [store, toast]);
+    if (!currentConfig || !selectedNode) return;
+
+    const newMenuItems = deleteMenuItemRecursive(currentConfig.config.menuItems || [], selectedNode.id);
+
+    setCurrentConfig({
+      ...currentConfig,
+      config: {
+        ...currentConfig.config,
+        menuItems: newMenuItems
+      }
+    });
+    setSelectedNode(null);
+    setIsDirty(true);
+
+    toast({
+      title: 'Item deleted',
+      description: 'Menu item has been removed',
+    });
+  }, [currentConfig, selectedNode, toast]);
 
   const handleDuplicateMenuItem = useCallback(() => {
-    if (store.selectedNode) {
-      const duplicate = createMenuItem({
-        ...store.selectedNode,
-        id: undefined,
-        caption: `${store.selectedNode.caption} (Copy)`
-      });
-      store.addMenuItem(undefined, duplicate);
-      toast({
-        title: 'Item duplicated',
-        description: 'Menu item has been duplicated',
-      });
-    }
-  }, [store, toast]);
+    if (!currentConfig || !selectedNode) return;
+
+    const duplicate = createMenuItem({
+      ...selectedNode,
+      id: undefined,
+      caption: `${selectedNode.caption} (Copy)`
+    });
+
+    const newMenuItems = [...(currentConfig.config.menuItems || []), duplicate];
+
+    setCurrentConfig({
+      ...currentConfig,
+      config: {
+        ...currentConfig.config,
+        menuItems: newMenuItems
+      }
+    });
+    setIsDirty(true);
+
+    toast({
+      title: 'Item duplicated',
+      description: 'Menu item has been duplicated',
+    });
+  }, [currentConfig, selectedNode, toast]);
 
   const handlePreview = useCallback(async () => {
-    if (!store.currentConfig) return;
+    if (!currentConfig) return;
 
     try {
       // Update dock with current configuration
-      await openFinDock.updateDock(store.currentConfig.config);
+      await openFinDock.updateDock(currentConfig.config);
       await openFinDock.showDock();
       toast({
         title: 'Preview updated',
@@ -217,12 +326,12 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
         variant: 'destructive'
       });
     }
-  }, [store.currentConfig, openFinDock, toast]);
+  }, [currentConfig, openFinDock, toast]);
 
   const handleExport = useCallback(() => {
-    if (!store.currentConfig) return;
+    if (!currentConfig) return;
 
-    const dataStr = JSON.stringify(store.currentConfig, null, 2);
+    const dataStr = JSON.stringify(currentConfig, null, 2);
     const dataUri = `data:application/json;charset=utf-8,${encodeURIComponent(dataStr)}`;
 
     const exportFileDefaultName = `dock-config-${new Date().toISOString().split('T')[0]}.json`;
@@ -236,7 +345,7 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
       title: 'Configuration exported',
       description: 'Configuration has been downloaded',
     });
-  }, [store.currentConfig, toast]);
+  }, [currentConfig, toast]);
 
   const handleImport = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -246,7 +355,9 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
     reader.onload = (e) => {
       try {
         const config = JSON.parse(e.target?.result as string);
-        store.setConfig(config);
+        setCurrentConfig(config);
+        setIsDirty(true);
+        setSelectedNode(null);
         toast({
           title: 'Configuration imported',
           description: 'Configuration has been loaded successfully',
@@ -260,7 +371,7 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
       }
     };
     reader.readAsText(file);
-  }, [store, toast]);
+  }, [toast]);
 
   const handleIconSelect = useCallback((callback: (icon: string) => void) => {
     setIconPickerCallback(() => callback);
@@ -275,6 +386,67 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
     setIconPickerCallback(null);
   }, [iconPickerCallback]);
 
+  const handleUpdateMenuItem = useCallback((id: string, updates: Partial<DockMenuItem>) => {
+    if (!currentConfig) return;
+
+    const newMenuItems = updateMenuItemRecursive(currentConfig.config.menuItems || [], id, updates);
+
+    // Update selected node if it's the one being updated
+    if (selectedNode?.id === id) {
+      setSelectedNode({ ...selectedNode, ...updates });
+    }
+
+    setCurrentConfig({
+      ...currentConfig,
+      config: {
+        ...currentConfig.config,
+        menuItems: newMenuItems
+      }
+    });
+    setIsDirty(true);
+  }, [currentConfig, selectedNode]);
+
+  const handleReorderItems = useCallback((sourceId: string, targetId: string, position: 'before' | 'after' | 'inside') => {
+    if (!currentConfig) return;
+
+    let newMenuItems = [...(currentConfig.config.menuItems || [])];
+
+    // Find and remove source item
+    const sourceItem = findMenuItem(newMenuItems, sourceId);
+    if (!sourceItem) return;
+
+    newMenuItems = deleteMenuItemRecursive(newMenuItems, sourceId);
+
+    // Insert at new position (simplified - just add to root for now)
+    if (position === 'inside') {
+      newMenuItems = newMenuItems.map(item => addChildToItem(item, targetId, sourceItem));
+    } else {
+      const targetIndex = newMenuItems.findIndex(item => item.id === targetId);
+      if (targetIndex !== -1) {
+        const insertIndex = position === 'before' ? targetIndex : targetIndex + 1;
+        newMenuItems.splice(insertIndex, 0, sourceItem);
+      }
+    }
+
+    setCurrentConfig({
+      ...currentConfig,
+      config: {
+        ...currentConfig.config,
+        menuItems: newMenuItems
+      }
+    });
+    setIsDirty(true);
+  }, [currentConfig]);
+
+  const handleCreateNewConfig = useCallback(() => {
+    const newConfig = createDockConfiguration(userId, appId) as DockConfiguration;
+    setCurrentConfig(newConfig);
+    setIsDirty(true);
+    setSelectedNode(null);
+  }, [userId, appId]);
+
+  const error = loadError instanceof Error ? loadError.message : loadError ? String(loadError) : null;
+
   return (
     <div className="h-full flex flex-col">
       {/* Header Toolbar */}
@@ -287,13 +459,13 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {store.isDirty && (
+            {isDirty && (
               <Badge variant="outline" className="gap-1">
                 <AlertCircle className="h-3 w-3" />
                 Unsaved changes
               </Badge>
             )}
-            {store.isLoading && (
+            {isLoading && (
               <Badge variant="outline" className="gap-1">
                 Loading...
               </Badge>
@@ -315,7 +487,7 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
               variant="outline"
               size="sm"
               onClick={handleDeleteMenuItem}
-              disabled={!store.selectedNode}
+              disabled={!selectedNode}
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Delete
@@ -324,31 +496,10 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
               variant="outline"
               size="sm"
               onClick={handleDuplicateMenuItem}
-              disabled={!store.selectedNode}
+              disabled={!selectedNode}
             >
               <Copy className="h-4 w-4 mr-2" />
               Duplicate
-            </Button>
-
-            <Separator orientation="vertical" className="mx-2 h-6" />
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => store.undo()}
-              disabled={!store.canUndo}
-            >
-              <Undo className="h-4 w-4 mr-2" />
-              Undo
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => store.redo()}
-              disabled={!store.canRedo}
-            >
-              <Redo className="h-4 w-4 mr-2" />
-              Redo
             </Button>
           </div>
 
@@ -397,10 +548,10 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
               variant="default"
               size="sm"
               onClick={handleSave}
-              disabled={!store.isDirty || store.isLoading}
+              disabled={!isDirty || isLoading || saveMutation.isPending}
             >
               <Save className="h-4 w-4 mr-2" />
-              Save
+              {saveMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </div>
         </div>
@@ -408,15 +559,15 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
-        {store.error && (
+        {error && (
           <Alert variant="destructive" className="m-4">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{store.error}</AlertDescription>
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
-        {!store.currentConfig ? (
+        {!currentConfig ? (
           <div className="flex items-center justify-center h-full">
             <Card className="max-w-md">
               <CardHeader>
@@ -426,7 +577,7 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button onClick={() => store.createNewConfig(userId, appId)}>
+                <Button onClick={handleCreateNewConfig}>
                   Create New Configuration
                 </Button>
               </CardContent>
@@ -445,13 +596,11 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
                   </CardHeader>
                   <CardContent>
                     <TreeView
-                      items={store.currentConfig.config.menuItems}
-                      selectedId={store.selectedNode?.id}
-                      onSelect={(item) => store.selectNode(item)}
-                      onReorder={(sourceId, targetId, position) =>
-                        store.reorderItems(sourceId, targetId, position)
-                      }
-                      onUpdate={(id, updates) => store.updateMenuItem(id, updates)}
+                      items={currentConfig.config.menuItems}
+                      selectedId={selectedNode?.id}
+                      onSelect={setSelectedNode}
+                      onReorder={handleReorderItems}
+                      onUpdate={handleUpdateMenuItem}
                     />
                   </CardContent>
                 </Card>
@@ -462,12 +611,10 @@ export const DockConfigEditor: React.FC<DockConfigEditorProps> = ({
 
             <ResizablePanel defaultSize={60} minSize={40}>
               <div className="h-full p-4 overflow-auto">
-                {store.selectedNode ? (
+                {selectedNode ? (
                   <PropertiesPanel
-                    item={store.selectedNode}
-                    onUpdate={(updates) =>
-                      store.updateMenuItem(store.selectedNode!.id, updates)
-                    }
+                    item={selectedNode}
+                    onUpdate={(updates) => handleUpdateMenuItem(selectedNode.id, updates)}
                     onIconSelect={handleIconSelect}
                   />
                 ) : (

@@ -3,16 +3,17 @@
  * Configure column definitions with in-grid editing (AGV3 pattern)
  */
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useTheme } from 'next-themes';
+import { useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ModuleRegistry, themeQuartz, ColDef, GridApi, GridReadyEvent, CellValueChangedEvent } from 'ag-grid-community';
+import { ModuleRegistry, ColDef, GridApi, GridReadyEvent, CellValueChangedEvent } from 'ag-grid-community';
 import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import { AgGridReact } from 'ag-grid-react';
 import { Plus, Trash2 } from 'lucide-react';
 import { FieldNode } from './FieldSelector';
 import { ColumnDefinition } from '@stern/shared-types';
+import { sternAgGridTheme } from '@/utils/agGridTheme';
+import { useAgGridTheme } from '@/hooks/useAgGridTheme';
 
 // Register AG-Grid modules
 ModuleRegistry.registerModules([AllEnterpriseModule]);
@@ -94,10 +95,7 @@ interface ColumnsTabProps {
   fieldColumnOverrides: Record<string, Partial<ColumnDefinition>>;
   onManualColumnsChange: (columns: ColumnDefinition[]) => void;
   onFieldColumnOverridesChange: (overrides: Record<string, Partial<ColumnDefinition>>) => void;
-  onSave: () => void;
-  onCancel: () => void;
   onClearAll: () => void;
-  isEditMode?: boolean;
 }
 
 export function ColumnsTab({
@@ -109,14 +107,12 @@ export function ColumnsTab({
   onManualColumnsChange,
   onFieldColumnOverridesChange,
   onClearAll,
-  onSave,
-  onCancel,
-  isEditMode = false
 }: ColumnsTabProps) {
   const [newColumn, setNewColumn] = useState({ field: '', header: '', type: 'text' as ColumnDefinition['cellDataType'] });
   const [, setGridApi] = useState<GridApi | null>(null);
-  const { theme, resolvedTheme } = useTheme();
-  const [, setThemeKey] = useState(0); // Force re-render on theme change
+
+  // Sync AG Grid theme with application theme
+  useAgGridTheme();
 
   // Get field type from inferred fields
   const getFieldType = (path: string): string | undefined => {
@@ -272,46 +268,6 @@ export function ColumnsTab({
     },
   ], [manualColumns, onManualColumnsChange]);
 
-  // Force grid to update when theme changes
-  useEffect(() => {
-    setThemeKey(prev => prev + 1);
-  }, [theme, resolvedTheme]);
-
-  // Grid theme configuration - dynamically read from CSS variables
-  const gridTheme = useMemo(() => {
-    // Read CSS custom properties to match the current theme
-    const root = document.documentElement;
-    const computedStyle = getComputedStyle(root);
-
-    // Helper to get HSL color and convert to hex
-    const getHslColor = (variable: string, fallback: string) => {
-      const hsl = computedStyle.getPropertyValue(variable).trim();
-      if (!hsl) return fallback;
-
-      // Convert HSL to hex (simple approximation for theme colors)
-      const [h, s, l] = hsl.split(' ').map(v => parseFloat(v));
-
-      // For grayscale (s=0), just use lightness
-      const lightness = l / 100;
-      const value = Math.round(lightness * 255);
-      const hex = value.toString(16).padStart(2, '0');
-      return `#${hex}${hex}${hex}`;
-    };
-
-    return themeQuartz.withParams({
-      accentColor: getHslColor('--accent', '#3a3a3a'),
-      backgroundColor: getHslColor('--background', '#1a1a1a'),
-      borderColor: getHslColor('--border', '#3a3a3a'),
-      foregroundColor: getHslColor('--foreground', '#e5e7eb'),
-      headerBackgroundColor: getHslColor('--muted', '#2a2a2a'),
-      headerFontSize: 12,
-      fontSize: 12,
-      rowHeight: 36,
-      headerHeight: 36,
-      cellHorizontalPadding: 8,
-    });
-  }, [theme, resolvedTheme]);
-
   // Handle grid ready
   const onGridReady = useCallback((event: GridReadyEvent) => {
     setGridApi(event.api);
@@ -448,8 +404,7 @@ export function ColumnsTab({
       {/* AG-Grid */}
       <div className="flex-1 overflow-hidden bg-background">
         <AgGridReact
-          theme={gridTheme}
-          className="ag-theme-quartz-dark"
+          theme={sternAgGridTheme}
           rowData={columns}
           columnDefs={columnDefs}
           onGridReady={onGridReady}
@@ -463,30 +418,6 @@ export function ColumnsTab({
           rowSelection="single"
           domLayout="normal"
         />
-      </div>
-
-      {/* Footer */}
-      <div className="p-4 border-t border-border bg-muted/30 flex items-center justify-between flex-shrink-0">
-        <div className="text-sm text-muted-foreground">
-          {columns.length} columns total
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            onClick={onCancel}
-            className="text-foreground hover:bg-muted hover:text-foreground"
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="default"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
-            onClick={onSave}
-          >
-            {isEditMode ? 'Update Datasource' : 'Create Datasource'}
-          </Button>
-        </div>
       </div>
     </div>
   );

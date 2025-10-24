@@ -56,10 +56,7 @@ interface FieldsTabProps {
   onSelectAllChange: (checked: boolean) => void;
   onClearAll: () => void;
   onInferFields?: () => void;
-  onSave: () => void;
-  onCancel: () => void;
   inferring?: boolean;
-  isEditMode?: boolean;
 }
 
 export function FieldsTab({
@@ -76,10 +73,7 @@ export function FieldsTab({
   onSelectAllChange,
   onClearAll,
   onInferFields,
-  onSave,
-  onCancel,
   inferring = false,
-  isEditMode = false
 }: FieldsTabProps) {
   // Convert FieldNode tree to TreeNode format
   const treeNodes = useMemo((): TreeNode[] => {
@@ -277,39 +271,6 @@ export function FieldsTab({
               )}
             </div>
           </ScrollArea>
-        </div>
-      </div>
-
-      {/* Bottom Action Bar */}
-      <div className="border-t border-border p-4 flex-shrink-0 bg-background dialog-footer">
-        <div className="flex gap-2 justify-between items-center">
-          <div className="text-sm text-muted-foreground">
-            {selectedFields.size} field{selectedFields.size !== 1 ? 's' : ''} selected
-          </div>
-          <div className="flex gap-2">
-            {onInferFields && (
-              <Button
-                onClick={onInferFields}
-                disabled={inferring}
-                variant="outline"
-              >
-                {inferring ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Inferring...
-                  </>
-                ) : (
-                  <>
-                    <Database className="mr-2 h-4 w-4" />
-                    Infer Fields
-                  </>
-                )}
-              </Button>
-            )}
-            <Button onClick={onSave} variant="default">
-              {isEditMode ? 'Update Datasource' : 'Create Datasource'}
-            </Button>
-          </div>
         </div>
       </div>
     </div>

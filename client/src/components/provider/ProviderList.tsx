@@ -3,19 +3,17 @@
  * Displays list of configured data providers with search and filtering
  */
 
-import React, { useState, useMemo } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import React, { useMemo } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Database, Wifi, Globe, Zap, TestTube, Star } from 'lucide-react';
+import { Database, Wifi, Globe, Zap, TestTube, Star } from 'lucide-react';
 
-import { useDataProviderStore } from '@/stores/dataProviderStore';
-import { ProviderType, PROVIDER_TYPES } from '@stern/shared-types';
+import { useDataProviders } from '@/hooks/useDataProviderQueries';
+import { ProviderType, DataProviderConfig } from '@stern/shared-types';
 
 interface ProviderListProps {
   userId: string;
+  currentProvider: DataProviderConfig | null;
+  onSelect: (provider: DataProviderConfig) => void;
 }
 
 // Provider type icons
@@ -36,9 +34,8 @@ const PROVIDER_COLORS: Record<ProviderType, string> = {
   mock: 'bg-gray-500'
 };
 
-export const ProviderList: React.FC<ProviderListProps> = ({ userId }) => {
-  const store = useDataProviderStore();
-  const { providers, currentProvider, isLoading } = store;
+export const ProviderList: React.FC<ProviderListProps> = ({ userId, currentProvider, onSelect }) => {
+  const { data: providers = [], isLoading } = useDataProviders(userId);
 
   // Sort: default first, then by name
   const sortedProviders = useMemo(() => {
@@ -50,10 +47,6 @@ export const ProviderList: React.FC<ProviderListProps> = ({ userId }) => {
     });
     return sorted;
   }, [providers]);
-
-  const handleSelectProvider = (providerId: string) => {
-    store.selectProvider(providerId);
-  };
 
   return (
     <div className="flex flex-col h-full">
@@ -77,7 +70,7 @@ export const ProviderList: React.FC<ProviderListProps> = ({ userId }) => {
                     ? 'bg-accent text-accent-foreground'
                     : 'hover:bg-accent/50'
                 }`}
-                onClick={() => handleSelectProvider(provider.providerId!)}
+                onClick={() => onSelect(provider)}
               >
                 {/* Type Icon */}
                 <div className="flex-shrink-0 text-muted-foreground">
