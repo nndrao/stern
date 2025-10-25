@@ -10,6 +10,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '@/utils/logger';
 
 export class TemplateResolver {
   private static instance: TemplateResolver;
@@ -107,7 +108,7 @@ export class TemplateResolver {
         const parts = path.split('.');
 
         if (parts.length < 2) {
-          console.warn(`[TemplateResolver] Invalid variable path: ${path}`);
+          logger.warn(`Invalid variable path: ${path}`, null, 'TemplateResolver');
           return match; // Return unchanged if invalid format
         }
 
@@ -116,7 +117,7 @@ export class TemplateResolver {
 
         return value !== undefined ? String(value) : match;
       } catch (error) {
-        console.error(`[TemplateResolver] Error resolving variable ${path}:`, error);
+        logger.error(`Error resolving variable ${path}`, error, 'TemplateResolver');
         return match; // Return unchanged on error
       }
     });
@@ -165,7 +166,7 @@ export class TemplateResolver {
         return value;
       }
     } catch (error) {
-      console.error(`[TemplateResolver] Error reading variables from ${datasourceName}:`, error);
+      logger.error(`Error reading variables from ${datasourceName}`, error, 'TemplateResolver');
     }
 
     return undefined;
@@ -227,7 +228,7 @@ export class TemplateResolver {
 
       localStorage.setItem(storageKey, JSON.stringify(variables));
     } catch (error) {
-      console.error(`[TemplateResolver] Error setting variable ${variableName} in ${datasourceName}:`, error);
+      logger.error(`Error setting variable ${variableName} in ${datasourceName}`, error, 'TemplateResolver');
     }
   }
 
@@ -244,7 +245,7 @@ export class TemplateResolver {
       const stored = localStorage.getItem(storageKey);
       return stored ? JSON.parse(stored) : {};
     } catch (error) {
-      console.error(`[TemplateResolver] Error reading variables from ${datasourceName}:`, error);
+      logger.error(`Error reading variables from ${datasourceName}`, error, 'TemplateResolver');
       return {};
     }
   }

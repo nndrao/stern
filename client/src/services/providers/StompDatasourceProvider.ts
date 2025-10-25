@@ -14,6 +14,7 @@ import { EventEmitter } from 'events';
 import { Client, StompConfig, IMessage } from '@stomp/stompjs';
 import { FieldInfo } from '@stern/shared-types';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '@/utils/logger';
 
 export interface StompConnectionConfig {
   websocketUrl: string;
@@ -80,22 +81,22 @@ export class StompDatasourceProvider extends EventEmitter {
         reconnectDelay: 0,
         heartbeatIncoming: 4000,
         heartbeatOutgoing: 4000,
-        debug: (msg) => console.log('[STOMP Debug]', msg),
+        debug: (msg) => logger.info(`STOMP Debug: ${msg}`, null, 'StompProvider'),
 
         onConnect: () => {
-          console.log('✅ STOMP connection test successful');
+          logger.info('STOMP connection test successful', null, 'StompProvider');
           this.statistics.connectionCount++;
           testClient.deactivate();
           resolve(true);
         },
 
         onStompError: (frame) => {
-          console.error('❌ STOMP error:', frame);
+          logger.error('STOMP error', frame, 'StompProvider');
           resolve(false);
         },
 
         onWebSocketError: (event) => {
-          console.error('❌ WebSocket error:', event);
+          logger.error('WebSocket error', event, 'StompProvider');
           resolve(false);
         }
       });
@@ -111,7 +112,7 @@ export class StompDatasourceProvider extends EventEmitter {
           }
         }, 10000);
       } catch (error) {
-        console.error('Failed to activate test client:', error);
+        logger.error('Failed to activate test client', error, 'StompProvider');
         resolve(false);
       }
     });
@@ -138,10 +139,10 @@ export class StompDatasourceProvider extends EventEmitter {
         reconnectDelay: 0,
         heartbeatIncoming: 4000,
         heartbeatOutgoing: 4000,
-        debug: (msg) => console.log('[STOMP]', msg),
+        debug: (msg) => logger.info(`STOMP: ${msg}`, null, 'StompProvider'),
 
         onConnect: () => {
-          console.log('✅ Connected to STOMP server for snapshot');
+          logger.info('Connected to STOMP server for snapshot', null, 'StompProvider');
           this.statistics.connectionCount++;
           this.statistics.mode = 'snapshot';
 
@@ -151,11 +152,11 @@ export class StompDatasourceProvider extends EventEmitter {
             (message: IMessage) => {
               try {
                 const data = JSON.parse(message.body);
-                console.log('[STOMP] Received message:', data);
+                logger.info('STOMP received message', { dataKeys: Object.keys(data) }, 'StompProvider');
 
                 // Check for snapshot end token
                 if (data.snapshotToken === snapshotEndToken || data.status === snapshotEndToken) {
-                  console.log('[STOMP] Snapshot complete token received');
+                  logger.info('STOMP snapshot complete token received', null, 'StompProvider');
                   snapshotComplete = true;
 
                   // Clean up and resolve
@@ -202,11 +203,11 @@ export class StompDatasourceProvider extends EventEmitter {
                     onBatch(rows, receivedData.length);
                   }
 
-                  console.log(`[STOMP] Received ${rows.length} rows, total (deduplicated): ${receivedData.length}`);
+                  logger.info(`STOMP received ${rows.length} rows, total (deduplicated): ${receivedData.length}`, null, 'StompProvider');
 
                   // Check if we've reached max rows
                   if (receivedData.length >= maxRows) {
-                    console.log('[STOMP] Reached max rows, completing snapshot');
+                    logger.info('STOMP reached max rows, completing snapshot', { maxRows, receivedCount: receivedData.length }, 'StompProvider');
                     subscription.unsubscribe();
                     client.deactivate();
 
@@ -218,14 +219,14 @@ export class StompDatasourceProvider extends EventEmitter {
                   }
                 }
               } catch (error) {
-                console.error('[STOMP] Error processing message:', error);
+                logger.error('STOMP error processing message', error, 'StompProvider');
               }
             }
           );
 
           // Send snapshot request if configured
           if (this.config!.requestMessage) {
-            console.log('[STOMP] Sending snapshot request:', this.config!.requestMessage);
+            logger.info('STOMP sending snapshot request', { destination: this.config!.requestMessage }, 'StompProvider');
             client.publish({
               destination: this.config!.requestMessage,
               body: this.config!.requestBody || 'START'
@@ -234,7 +235,7 @@ export class StompDatasourceProvider extends EventEmitter {
         },
 
         onStompError: (frame) => {
-          console.error('❌ STOMP error:', frame);
+          logger.error('STOMP error', { message: frame.headers['message'] }, 'StompProvider');
           this.statistics.disconnectionCount++;
           resolve({
             success: false,
@@ -243,7 +244,7 @@ export class StompDatasourceProvider extends EventEmitter {
         },
 
         onWebSocketError: (event) => {
-          console.error('❌ WebSocket error:', event);
+          logger.error('WebSocket error', event, 'StompProvider');
           this.statistics.disconnectionCount++;
           resolve({
             success: false,
@@ -252,7 +253,7 @@ export class StompDatasourceProvider extends EventEmitter {
         },
 
         onDisconnect: () => {
-          console.log('🔌 Disconnected from STOMP server');
+          logger.info('Disconnected from STOMP server', null, 'StompProvider');
           this.statistics.disconnectionCount++;
 
           if (!snapshotComplete) {
@@ -272,7 +273,7 @@ export class StompDatasourceProvider extends EventEmitter {
         const timeout = this.config!.snapshotTimeoutMs || 60000;
         setTimeout(() => {
           if (!snapshotComplete) {
-            console.log('[STOMP] Snapshot timeout reached');
+            logger.warn('STOMP snapshot timeout reached', { timeout, rowsReceived: receivedData.length }, 'StompProvider');
             client.deactivate();
 
             resolve({
@@ -283,7 +284,7 @@ export class StompDatasourceProvider extends EventEmitter {
           }
         }, timeout);
       } catch (error) {
-        console.error('Failed to activate STOMP client:', error);
+        logger.error('Failed to activate STOMP client', error, 'StompProvider');
         resolve({
           success: false,
           error: error instanceof Error ? error.message : 'Failed to connect'

@@ -33,11 +33,14 @@ export function useDockConfig(userId: string) {
         const config = await dockConfigService.loadApplicationsMenuItems(userId);
         logger.info('Dock configuration loaded', { configId: config?.configId }, 'useDockConfig');
         return config;
-      } catch (error: any) {
+      } catch (error: unknown) {
         // If no config exists (404), return null instead of throwing
-        if (error.status === 404 || error.message?.includes('not found')) {
-          logger.info('No dock configuration found for user', { userId }, 'useDockConfig');
-          return null;
+        if (error && typeof error === 'object') {
+          const err = error as { status?: number; message?: string };
+          if (err.status === 404 || err.message?.includes('not found')) {
+            logger.info('No dock configuration found for user', { userId }, 'useDockConfig');
+            return null;
+          }
         }
         throw error;
       }

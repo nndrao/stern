@@ -42,11 +42,12 @@ export const ClearCacheButton: React.FC<ClearCacheButtonProps> = ({
         title: 'Cache Cleared',
         description: 'Application reloaded successfully'
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       setIsClearing(false);
+      const message = error instanceof Error ? error.message : 'An error occurred';
       toast({
         title: 'Failed to Clear Cache',
-        description: error.message || 'An error occurred',
+        description: message,
         variant: 'destructive'
       });
     }

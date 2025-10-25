@@ -54,8 +54,6 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, provider, on
   const updateMutation = useUpdateDataProvider();
 
   const handleSave = useCallback(async () => {
-    console.log('[ProviderForm] Save button clicked');
-
     // Validation
     if (!provider.name || provider.name.trim() === '') {
       toast({
@@ -87,10 +85,11 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, provider, on
       setIsDirty(false);
       // Notify parent that save was successful (marks as clean)
       onSave?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to save provider';
       toast({
         title: 'Save Failed',
-        description: error.message || 'Failed to save provider',
+        description: message,
         variant: 'destructive'
       });
     }

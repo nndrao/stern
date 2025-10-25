@@ -6,6 +6,7 @@
 import { apiClient, apiCall } from '@/utils/apiClient';
 import { DockConfiguration, DockConfigFilter, DockMenuItem, DockApplicationsMenuItemsConfig } from '@/openfin/types/dockConfig';
 import { COMPONENT_TYPES, COMPONENT_SUBTYPES } from '@stern/shared-types';
+import { logger } from '@/utils/logger';
 
 /**
  * Helper function to clean menu items - set defaults for missing fields
@@ -64,7 +65,7 @@ export const dockConfigService = {
       );
       return configs.length > 0 ? configs[0] : null;
     } catch (error) {
-      console.error('Error loading dock applications menu items:', error);
+      logger.error('Error loading dock applications menu items', error, 'DockConfigService');
       return null;
     }
   },

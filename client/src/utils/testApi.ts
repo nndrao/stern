@@ -18,17 +18,21 @@ export async function testApiConnection() {
     logger.info('Configuration response', configResponse.data, 'testApi');
 
     return { success: true, message: 'API connection successful' };
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('API connection failed', error, 'testApi');
+    const message = error instanceof Error ? error.message : 'API connection failed';
+    const details = (error && typeof error === 'object' && 'response' in error)
+      ? (error as { response?: { data?: unknown }; code?: string }).response?.data || (error as { code?: string }).code
+      : undefined;
     return {
       success: false,
-      message: error.message,
-      details: error.response?.data || error.code
+      message,
+      details
     };
   }
 }
 
 // Add to window for easy browser console testing
 if (typeof window !== 'undefined') {
-  (window as any).testApiConnection = testApiConnection;
+  window.testApiConnection = testApiConnection;
 }

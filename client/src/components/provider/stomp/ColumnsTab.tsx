@@ -195,8 +195,7 @@ export function ColumnsTab({
               if (params.data.source === 'field') {
                 // For field-based columns, we remove from selected fields
                 // This is handled externally via selectedFields state
-                // Here we just handle the UI action
-                console.log('[ColumnsTab] Cannot delete field-based column from this view');
+                // Here we just handle the UI action (no-op)
               } else {
                 onManualColumnsChange(manualColumns.filter(col => col.field !== params.data.field));
               }

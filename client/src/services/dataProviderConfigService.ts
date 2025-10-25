@@ -153,9 +153,12 @@ export class DataProviderConfigService {
       }
 
       return this.fromUnifiedConfig(response.data);
-    } catch (error: any) {
-      if (error.response?.status === 404) {
-        return null;
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status?: number } };
+        if (axiosError.response?.status === 404) {
+          return null;
+        }
       }
       logger.error('Failed to fetch data provider', error, 'DataProviderConfigService');
       throw error;
