@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { init } from '@openfin/workspace-platform';
-import { OpenFinWorkspaceProvider } from '../services/OpenfinWorkspaceProvider';
 import { useOpenfinTheme } from '../hooks/useOpenfinTheme';
 import { TopTabBar } from '@/components/provider/TopTabBar';
 import { DockConfigEditor } from '@/components/provider/DockConfigEditor';
@@ -386,9 +385,9 @@ export default function Provider() {
   // is already wrapped by ThemeProvider in main.tsx (lines 25-30)
   // Having nested ThemeProviders prevents theme synchronization from working
   return (
-    <OpenFinWorkspaceProvider>
+    <>
       <DashboardContent />
       <Toaster />
-    </OpenFinWorkspaceProvider>
+    </>
   );
 }

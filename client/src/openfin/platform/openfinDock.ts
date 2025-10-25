@@ -51,15 +51,6 @@ let registration: DockProviderRegistration | undefined;
 let currentConfig: DockProviderConfig | undefined;
 
 /**
- * Platform settings - stored during initialization
- */
-let platformSettings: {
-  id: string;
-  title: string;
-  icon: string;
-} | undefined;
-
-/**
  * Current theme state - used for dynamic theme button icon updates
  */
 let currentTheme: 'light' | 'dark' = 'light';
@@ -116,13 +107,6 @@ export async function register(config: {
       logger.warn('Could not read platform theme, defaulting to light', error, 'dock');
       currentTheme = 'light';
     }
-
-    // Store platform settings for reload operations
-    platformSettings = {
-      id: config.id,
-      title: config.title,
-      icon: config.icon
-    };
 
     // Build dock buttons
     const buttons: DockButton[] = [];
@@ -269,7 +253,7 @@ export async function updateConfig(config: {
   workspaceComponents?: WorkspaceButtonsConfig;
 }): Promise<void> {
   try {
-    if (!registration || !currentConfig || !platformSettings) {
+    if (!registration || !currentConfig) {
       throw new Error('Dock not registered - call register() first');
     }
 
@@ -312,7 +296,7 @@ export async function updateConfig(config: {
  */
 async function updateAllDockIcons(): Promise<void> {
   try {
-    if (!registration || !currentConfig || !platformSettings) {
+    if (!registration || !currentConfig) {
       return;
     }
 
@@ -370,57 +354,6 @@ async function updateAllDockIcons(): Promise<void> {
   }
 }
 
-/**
- * Full dock reload (deregister and re-register)
- *
- * This follows the exact pattern from workspace-starter/register-with-dock-basic.
- * Used when updateConfig() is not sufficient (e.g., changing fundamental settings).
- *
- * Pattern: deregister -> wait 500ms -> register -> show
- *
- * @returns Promise that resolves when reload is complete
- */
-export async function reload(): Promise<void> {
-  try {
-    if (!currentConfig || !platformSettings) {
-      throw new Error('Dock not registered - cannot reload');
-    }
-
-    logger.info('Reloading dock (full deregister/register cycle)', undefined, 'dock');
-
-    // Re-sync theme state from platform before reload
-    try {
-      const platform = getCurrentSync();
-      const schemes = await platform.Theme.getSelectedScheme();
-      currentTheme = (schemes as any) === 'dark' ? 'dark' : 'light';
-      logger.info('Re-synced theme from platform before reload', { currentTheme }, 'dock');
-    } catch (error) {
-      logger.warn('Could not read platform theme during reload', error, 'dock');
-    }
-
-    // Store current config
-    const configToRestore = { ...currentConfig };
-
-    // Deregister
-    await Dock.deregister();
-    logger.debug('Dock deregistered', undefined, 'dock');
-
-    // CRITICAL: Wait for cleanup (from workspace-starter pattern)
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Re-register with same configuration
-    registration = await Dock.register(configToRestore);
-    logger.debug('Dock re-registered', undefined, 'dock');
-
-    // Show the dock
-    await Dock.show();
-    logger.info('Dock reload complete', undefined, 'dock');
-  } catch (error) {
-    logger.error('Failed to reload dock', error, 'dock');
-    throw error;
-  }
-}
-
 // ============================================================================
 // Custom Actions - MUST be registered before dock in platform init()
 // ============================================================================
@@ -468,11 +401,44 @@ export function dockGetCustomActions(): CustomActionsMap {
      * Reload the dock
      *
      * Uses the full deregister/register cycle as per workspace-starter pattern.
+     * Pattern: deregister -> wait 500ms -> register -> show
      */
     'reload-dock': async (): Promise<void> => {
       try {
-        logger.info('Reload dock action triggered', undefined, 'dock');
-        await reload();
+        if (!currentConfig) {
+          logger.error('Dock not registered - cannot reload', undefined, 'dock');
+          return;
+        }
+
+        logger.info('Reload dock action triggered (full deregister/register cycle)', undefined, 'dock');
+
+        // Re-sync theme state from platform before reload
+        try {
+          const platform = getCurrentSync();
+          const schemes = await platform.Theme.getSelectedScheme();
+          currentTheme = (schemes as any) === 'dark' ? 'dark' : 'light';
+          logger.info('Re-synced theme from platform before reload', { currentTheme }, 'dock');
+        } catch (error) {
+          logger.warn('Could not read platform theme during reload', error, 'dock');
+        }
+
+        // Store current config
+        const configToRestore = { ...currentConfig };
+
+        // Deregister
+        await Dock.deregister();
+        logger.debug('Dock deregistered', undefined, 'dock');
+
+        // CRITICAL: Wait for cleanup (from workspace-starter pattern)
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Re-register with same configuration
+        registration = await Dock.register(configToRestore);
+        logger.debug('Dock re-registered', undefined, 'dock');
+
+        // Show the dock
+        await Dock.show();
+        logger.info('Dock reload complete', undefined, 'dock');
       } catch (error) {
         logger.error('Failed to reload dock', error, 'dock');
       }

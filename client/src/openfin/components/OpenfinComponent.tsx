@@ -12,7 +12,7 @@
 
 import React, { useEffect, useState, useCallback, createContext, useContext } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useOpenFinWorkspace } from '../services/OpenfinWorkspaceProvider';
+import { useOpenFinWorkspace } from '../hooks/useOpenfinWorkspace';
 import { iabService } from '../services/OpenfinIABService';
 import { configService } from '@/services/configurationService';
 import { useOpenfinTheme } from '../hooks/useOpenfinTheme';
