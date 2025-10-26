@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App.tsx';
 import { ThemeProvider } from './components/theme-provider';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { OpenFinWorkspaceProvider } from './openfin/services/OpenfinWorkspaceProvider';
+import { SternPlatformProvider } from './providers/SternPlatformProvider';
 import './index.css';
 
 // Create a QueryClient instance
@@ -20,6 +20,7 @@ const queryClient = new QueryClient({
 });
 
 const PlatformProvider = lazy(() => import('./openfin/platform/OpenfinProvider'));
+const DemoComponent = lazy(() => import('./components/custom-components/DemoComponent'));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -41,7 +42,7 @@ createRoot(document.getElementById('root')!).render(
           enableSystem
           disableTransitionOnChange
         >
-          <OpenFinWorkspaceProvider>
+          <SternPlatformProvider>
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<App />} />
@@ -53,9 +54,17 @@ createRoot(document.getElementById('root')!).render(
                     </Suspense>
                   }
                 />
+                <Route
+                  path="/customcomponents"
+                  element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <DemoComponent />
+                    </Suspense>
+                  }
+                />
               </Routes>
             </BrowserRouter>
-          </OpenFinWorkspaceProvider>
+          </SternPlatformProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>

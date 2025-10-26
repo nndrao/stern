@@ -33,7 +33,7 @@
  */
 
 import { useCallback } from 'react';
-import { useOpenFinWorkspace } from '../services/OpenfinWorkspaceProvider';
+import { useOpenFinWorkspace } from './useOpenfinWorkspace';
 import {
   OpenFinCustomEvents,
   OpenFinEventMap,

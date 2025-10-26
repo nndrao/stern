@@ -9,7 +9,8 @@ export const PROVIDER_TYPES = {
   REST: 'rest',
   WEBSOCKET: 'websocket',
   SOCKETIO: 'socketio',
-  MOCK: 'mock'
+  MOCK: 'mock',
+  APPDATA: 'appdata'
 } as const;
 
 export type ProviderType = typeof PROVIDER_TYPES[keyof typeof PROVIDER_TYPES];
@@ -23,7 +24,8 @@ export const PROVIDER_TYPE_TO_COMPONENT_SUBTYPE: Record<ProviderType, string> = 
   [PROVIDER_TYPES.REST]: 'Rest',
   [PROVIDER_TYPES.WEBSOCKET]: 'WebSocket',
   [PROVIDER_TYPES.SOCKETIO]: 'SocketIO',
-  [PROVIDER_TYPES.MOCK]: 'Mock'
+  [PROVIDER_TYPES.MOCK]: 'Mock',
+  [PROVIDER_TYPES.APPDATA]: 'AppData'
 };
 
 /**
@@ -36,12 +38,14 @@ export const COMPONENT_SUBTYPE_TO_PROVIDER_TYPE: Record<string, ProviderType> = 
   'WebSocket': PROVIDER_TYPES.WEBSOCKET,
   'SocketIO': PROVIDER_TYPES.SOCKETIO,
   'Mock': PROVIDER_TYPES.MOCK,
+  'AppData': PROVIDER_TYPES.APPDATA,
   // Lowercase fallbacks for backward compatibility
   'stomp': PROVIDER_TYPES.STOMP,
   'rest': PROVIDER_TYPES.REST,
   'websocket': PROVIDER_TYPES.WEBSOCKET,
   'socketio': PROVIDER_TYPES.SOCKETIO,
-  'mock': PROVIDER_TYPES.MOCK
+  'mock': PROVIDER_TYPES.MOCK,
+  'appdata': PROVIDER_TYPES.APPDATA
 };
 
 /**
@@ -126,6 +130,8 @@ export interface RestProviderConfig {
   baseUrl: string;                // Base URL (e.g., 'https://api.example.com')
   endpoint: string;               // Endpoint path (e.g., '/v1/positions')
   method: 'GET' | 'POST';         // HTTP method
+  queryParams?: Record<string, string>; // Query string parameters (e.g., {symbol: 'AAPL', limit: '100'})
+  body?: string;                  // Request body for POST/PUT (JSON string)
   headers?: Record<string, string>; // Custom headers
   pollInterval?: number;          // Polling interval in ms (default: 5000)
   paginationMode?: 'offset' | 'cursor' | 'page'; // Pagination strategy
@@ -185,6 +191,28 @@ export interface MockProviderConfig {
 }
 
 /**
+ * AppData Variable
+ * Represents a single variable in an AppData provider
+ */
+export interface AppDataVariable {
+  key: string;                    // Variable name
+  value: string | number | boolean | object;  // Scalar or JSON value
+  type: 'string' | 'number' | 'boolean' | 'json';
+  description?: string;           // Optional documentation
+  sensitive?: boolean;            // Hide value in UI (e.g., tokens, passwords)
+}
+
+/**
+ * AppData Provider Configuration
+ * For global application variables shared across all windows/views
+ * Accessed using template syntax: {AppData.ProviderName.variableName}
+ */
+export interface AppDataProviderConfig {
+  providerType: 'appdata';
+  variables: Record<string, AppDataVariable>;  // Key-value pairs
+}
+
+/**
  * Union type for all provider configurations
  */
 export type ProviderConfig =
@@ -192,7 +220,8 @@ export type ProviderConfig =
   | RestProviderConfig
   | WebSocketProviderConfig
   | SocketIOProviderConfig
-  | MockProviderConfig;
+  | MockProviderConfig
+  | AppDataProviderConfig;
 
 /**
  * Provider capabilities
@@ -324,6 +353,10 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, Partial<ProviderConf
     updateInterval: 2000,
     rowCount: 20,
     enableUpdates: true
+  },
+  appdata: {
+    providerType: 'appdata',
+    variables: {}
   }
 };
 

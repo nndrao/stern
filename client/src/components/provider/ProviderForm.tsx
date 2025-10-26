@@ -36,6 +36,7 @@ import {
   DataProviderConfig
 } from '@stern/shared-types';
 import { StompConfigurationForm } from './stomp/StompConfigurationForm';
+import { KeyValueEditor } from './KeyValueEditor';
 
 interface ProviderFormProps {
   userId: string;
@@ -121,33 +122,36 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, provider, on
 
   return (
     <div className="flex flex-col h-full">
-      {/* Main content area - STOMP goes straight to tabs */}
-      <div className="flex-1 overflow-hidden">
-        {provider.providerType === PROVIDER_TYPES.STOMP ? (
-          /* Enhanced STOMP Configuration with full 3-tab interface */
-          <StompConfigurationForm
-            name={provider.name}
-            config={provider.config as StompProviderConfig}
-            onChange={handleConfigChange}
-            onNameChange={(name) => handleFieldChange('name', name)}
-            onSave={handleSave}
-            onCancel={onClose}
-            isEditMode={isEditMode}
-          />
-        ) : (
-          <div className="flex flex-col h-full">
-            {/* Header with datasource name for non-STOMP */}
-            <div className="p-4 border-b border-[#3a3a3a]">
+      {provider.providerType === PROVIDER_TYPES.STOMP ? (
+        /* Enhanced STOMP Configuration with full 3-tab interface */
+        <StompConfigurationForm
+          name={provider.name}
+          config={provider.config as StompProviderConfig}
+          onChange={handleConfigChange}
+          onNameChange={(name) => handleFieldChange('name', name)}
+          onSave={handleSave}
+          onCancel={onClose}
+          isEditMode={isEditMode}
+        />
+      ) : (
+        <>
+          {/* Header with datasource name for non-STOMP */}
+          <div className="p-6 border-b bg-card flex-shrink-0">
+            <div className="space-y-2">
+              <Label htmlFor="providerName" className="text-sm font-medium">Datasource Name *</Label>
               <Input
+                id="providerName"
                 value={provider.name}
                 onChange={(e) => handleFieldChange('name', e.target.value)}
-                placeholder="Datasource Name"
-                className="text-lg font-semibold border-none shadow-none focus-visible:ring-0 px-0 bg-transparent text-white"
+                placeholder="Enter datasource name"
+                className="text-base"
               />
             </div>
-            <div className="flex-1 overflow-hidden">
-              <ScrollArea className="h-full">
-                <div className="p-6 space-y-6">
+          </div>
+
+          {/* Scrollable Content Area */}
+          <div className="flex-1 overflow-auto min-h-0">
+            <div className="p-6 space-y-6">
                   {/* Basic Information for non-STOMP providers */}
                   <Card>
                     <CardHeader>
@@ -255,25 +259,28 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({ userId, provider, on
                       </Tabs>
                     </CardContent>
                   </Card>
-                </div>
-              </ScrollArea>
             </div>
+          </div>
 
-            {/* Bottom Action Bar for non-STOMP */}
-            <div className="border-t border-[#3a3a3a] p-4 flex items-center justify-end gap-3 bg-[#1a1a1a]">
+          {/* Bottom Action Bar for non-STOMP */}
+          <div className="border-t bg-card p-4 flex items-center justify-between gap-3 shadow-sm flex-shrink-0">
+            <div className="text-xs text-muted-foreground">
+              {isDirty && <span className="text-amber-600 dark:text-amber-400">Unsaved changes</span>}
+            </div>
+            <div className="flex items-center gap-3">
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
               <Button
                 onClick={handleSave}
-                disabled={createMutation.isPending || updateMutation.isPending}
+                disabled={createMutation.isPending || updateMutation.isPending || !provider.name.trim()}
               >
                 {createMutation.isPending || updateMutation.isPending ? 'Saving...' : (isEditMode ? 'Update Datasource' : 'Create Datasource')}
               </Button>
             </div>
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 };
@@ -367,7 +374,7 @@ const RestConfigForm: React.FC<{
   config: RestProviderConfig;
   onChange: (field: string, value: any) => void;
 }> = ({ config, onChange }) => (
-  <div className="space-y-4">
+  <div className="space-y-6">
     <div className="space-y-2">
       <Label htmlFor="baseUrl">Base URL *</Label>
       <Input
@@ -404,6 +411,41 @@ const RestConfigForm: React.FC<{
       </Select>
     </div>
 
+    <Separator />
+
+    {/* Query Parameters */}
+    <KeyValueEditor
+      label="Query Parameters"
+      description="URL query string parameters (e.g., symbol, limit, filter)"
+      value={config.queryParams || {}}
+      onChange={(value) => onChange('queryParams', value)}
+      keyPlaceholder="Parameter name"
+      valuePlaceholder="Parameter value"
+    />
+
+    {/* POST Body - Only show for POST method */}
+    {config.method === 'POST' && (
+      <>
+        <Separator />
+        <div className="space-y-2">
+          <Label htmlFor="body">Request Body (JSON)</Label>
+          <Textarea
+            id="body"
+            value={config.body || ''}
+            onChange={(e) => onChange('body', e.target.value)}
+            placeholder='{"filter": "active", "sort": "desc"}'
+            rows={6}
+            className="font-mono text-xs"
+          />
+          <p className="text-xs text-muted-foreground">
+            Enter valid JSON for the POST request body
+          </p>
+        </div>
+      </>
+    )}
+
+    <Separator />
+
     <div className="space-y-2">
       <Label htmlFor="pollInterval">Poll Interval (ms)</Label>
       <Input
@@ -412,6 +454,9 @@ const RestConfigForm: React.FC<{
         value={config.pollInterval || 5000}
         onChange={(e) => onChange('pollInterval', parseInt(e.target.value))}
       />
+      <p className="text-xs text-muted-foreground">
+        How often to poll the API for updates
+      </p>
     </div>
   </div>
 );
@@ -421,16 +466,18 @@ const RestAdvancedForm: React.FC<{
   config: RestProviderConfig;
   onChange: (field: string, value: any) => void;
 }> = ({ config, onChange }) => (
-  <div className="space-y-4">
-    <div className="space-y-2">
-      <Label htmlFor="pageSize">Page Size</Label>
-      <Input
-        id="pageSize"
-        type="number"
-        value={config.pageSize || 100}
-        onChange={(e) => onChange('pageSize', parseInt(e.target.value))}
-      />
-    </div>
+  <div className="space-y-6">
+    {/* Custom Headers */}
+    <KeyValueEditor
+      label="Custom Headers"
+      description="HTTP headers to include with each request"
+      value={config.headers || {}}
+      onChange={(value) => onChange('headers', value)}
+      keyPlaceholder="Header name"
+      valuePlaceholder="Header value"
+    />
+
+    <Separator />
 
     <div className="space-y-2">
       <Label htmlFor="timeout">Request Timeout (ms)</Label>
@@ -440,7 +487,12 @@ const RestAdvancedForm: React.FC<{
         value={config.timeout || 30000}
         onChange={(e) => onChange('timeout', parseInt(e.target.value))}
       />
+      <p className="text-xs text-muted-foreground">
+        Maximum time to wait for a response
+      </p>
     </div>
+
+    <Separator />
 
     <div className="space-y-2">
       <Label htmlFor="paginationMode">Pagination Mode</Label>
@@ -457,7 +509,30 @@ const RestAdvancedForm: React.FC<{
           <SelectItem value="page">Page-based</SelectItem>
         </SelectContent>
       </Select>
+      <p className="text-xs text-muted-foreground">
+        Strategy for paginating through large datasets
+      </p>
     </div>
+
+    <div className="space-y-2">
+      <Label htmlFor="pageSize">Page Size</Label>
+      <Input
+        id="pageSize"
+        type="number"
+        value={config.pageSize || 100}
+        onChange={(e) => onChange('pageSize', parseInt(e.target.value))}
+      />
+      <p className="text-xs text-muted-foreground">
+        Number of records to fetch per page
+      </p>
+    </div>
+
+    <Alert>
+      <Info className="h-4 w-4" />
+      <AlertDescription className="text-xs">
+        Common headers: Content-Type, Accept, Authorization, X-API-Key
+      </AlertDescription>
+    </Alert>
   </div>
 );
 

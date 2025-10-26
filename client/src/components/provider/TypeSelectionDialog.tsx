@@ -1,6 +1,7 @@
 /**
- * Type Selection Dialog
- * Modal for selecting datasource type when creating new datasource
+ * Type Selection Dialog - Enhanced
+ * Modern card-based modal for selecting datasource type
+ * Features: Gradient icons, hover animations, feature highlights
  */
 
 import React from 'react';
@@ -11,14 +12,75 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Database, Code } from 'lucide-react';
+import { Database, Globe, Wifi, Zap, TestTube, Check } from 'lucide-react';
 import { ProviderType } from '@stern/shared-types';
+import { Badge } from '@/components/ui/badge';
 
 interface TypeSelectionDialogProps {
   open: boolean;
   onClose: () => void;
   onSelect: (type: ProviderType) => void;
 }
+
+interface ProviderTypeOption {
+  type: ProviderType;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  features: string[];
+  recommended?: boolean;
+  gradientFrom: string;
+  gradientTo: string;
+}
+
+const PROVIDER_OPTIONS: ProviderTypeOption[] = [
+  {
+    type: 'stomp',
+    icon: <Wifi className="h-8 w-8" />,
+    title: 'STOMP Datasource',
+    description: 'Real-time streaming data via WebSocket STOMP protocol',
+    features: ['Real-time updates', 'Field inference', 'Template variables'],
+    recommended: true,
+    gradientFrom: 'from-blue-500',
+    gradientTo: 'to-cyan-500'
+  },
+  {
+    type: 'rest',
+    icon: <Globe className="h-8 w-8" />,
+    title: 'REST API',
+    description: 'Poll data from HTTP REST endpoints',
+    features: ['Simple integration', 'Pagination support', 'Flexible polling'],
+    gradientFrom: 'from-green-500',
+    gradientTo: 'to-emerald-500'
+  },
+  {
+    type: 'websocket',
+    icon: <Zap className="h-8 w-8" />,
+    title: 'WebSocket',
+    description: 'Native WebSocket connections for real-time data',
+    features: ['Low latency', 'Binary support', 'Auto-reconnect'],
+    gradientFrom: 'from-purple-500',
+    gradientTo: 'to-pink-500'
+  },
+  {
+    type: 'socketio',
+    icon: <Database className="h-8 w-8" />,
+    title: 'Socket.IO',
+    description: 'Socket.IO client for event-based communication',
+    features: ['Event system', 'Room support', 'Fallback transport'],
+    gradientFrom: 'from-orange-500',
+    gradientTo: 'to-red-500'
+  },
+  {
+    type: 'mock',
+    icon: <TestTube className="h-8 w-8" />,
+    title: 'Mock Data',
+    description: 'Generate test data for development and demos',
+    features: ['No dependencies', 'Configurable rows', 'Random updates'],
+    gradientFrom: 'from-gray-500',
+    gradientTo: 'to-slate-500'
+  }
+];
 
 export const TypeSelectionDialog: React.FC<TypeSelectionDialogProps> = ({
   open,
@@ -32,38 +94,57 @@ export const TypeSelectionDialog: React.FC<TypeSelectionDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[900px] max-h-[85vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Select Datasource Type</DialogTitle>
+          <DialogTitle className="text-2xl">Select Datasource Type</DialogTitle>
           <DialogDescription>
-            Choose the type of datasource you want to create
+            Choose the protocol that best fits your data source requirements
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-4 py-6">
-          {/* STOMP Datasource */}
-          <button
-            onClick={() => handleSelect('stomp')}
-            className="flex flex-col items-center justify-center p-8 border-2 border-border rounded-lg hover:border-primary hover:bg-accent transition-colors"
-          >
-            <Database className="h-12 w-12 mb-4 text-primary" />
-            <h3 className="text-lg font-semibold">STOMP Datasource</h3>
-            <p className="text-sm text-muted-foreground text-center mt-2">
-              Real-time data via WebSocket STOMP protocol
-            </p>
-          </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 py-6 overflow-y-auto max-h-[calc(85vh-120px)]">
+          {PROVIDER_OPTIONS.map((option) => (
+            <button
+              key={option.type}
+              onClick={() => handleSelect(option.type)}
+              className="group relative flex flex-col p-6 border-2 border-border rounded-xl hover:border-primary hover:shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] bg-card text-left"
+            >
+              {/* Recommended Badge */}
+              {option.recommended && (
+                <Badge className="absolute -top-2 -right-2 bg-gradient-to-r from-amber-500 to-orange-500 border-none text-white shadow-md">
+                  Recommended
+                </Badge>
+              )}
 
-          {/* App Variables (Mock for now) */}
-          <button
-            onClick={() => handleSelect('mock')}
-            className="flex flex-col items-center justify-center p-8 border-2 border-border rounded-lg hover:border-primary hover:bg-accent transition-colors"
-          >
-            <Code className="h-12 w-12 mb-4 text-primary" />
-            <h3 className="text-lg font-semibold">App Variables</h3>
-            <p className="text-sm text-muted-foreground text-center mt-2">
-              Application-level configuration variables
-            </p>
-          </button>
+              {/* Icon with Gradient Background */}
+              <div className={`w-16 h-16 rounded-lg bg-gradient-to-br ${option.gradientFrom} ${option.gradientTo} flex items-center justify-center text-white mb-4 group-hover:shadow-lg transition-shadow duration-300`}>
+                {option.icon}
+              </div>
+
+              {/* Title */}
+              <h3 className="text-lg font-semibold mb-2 group-hover:text-primary transition-colors">
+                {option.title}
+              </h3>
+
+              {/* Description */}
+              <p className="text-sm text-muted-foreground mb-4 flex-1">
+                {option.description}
+              </p>
+
+              {/* Features */}
+              <div className="space-y-1.5">
+                {option.features.map((feature, index) => (
+                  <div key={index} className="flex items-start gap-2 text-xs">
+                    <Check className="h-3.5 w-3.5 text-primary flex-shrink-0 mt-0.5" />
+                    <span className="text-muted-foreground">{feature}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Hover Effect Overlay */}
+              <div className="absolute inset-0 rounded-xl bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+            </button>
+          ))}
         </div>
       </DialogContent>
     </Dialog>

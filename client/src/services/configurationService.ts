@@ -9,35 +9,72 @@ import { apiClient } from '@/utils/apiClient';
 import { logger } from '@/utils/logger';
 
 export interface UnifiedConfig {
+  // Identity
   configId: string;
-  name: string;
+  appId: string;
+  userId: string;
+
+  // Component Classification
   componentType: string;
   componentSubType?: string;
-  config: Record<string, any>;
-  settings?: ConfigVersion[];
-  userId?: string;
-  createdBy?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  version?: number;
+
+  // Display
+  name: string;
+  description?: string;
+  icon?: string;
+
+  // Configuration Data
+  config: any;
+  settings: ConfigVersion[];
+  activeSetting: string;
+
+  // Metadata
+  tags?: string[];
+  category?: string;
+  isShared?: boolean;
+  isDefault?: boolean;
+  isLocked?: boolean;
+
+  // Audit
+  createdBy: string;
+  lastUpdatedBy: string;
+  creationTime: Date;
+  lastUpdated: Date;
+
+  // Soft Delete
+  deletedAt?: Date | null;
+  deletedBy?: string | null;
 }
 
 export interface ConfigVersion {
+  versionId: string;
   name: string;
-  version: string;
-  config: Record<string, any>;
-  createdAt: string;
-  createdBy: string;
+  description?: string;
+  config: any;
+  createdTime: Date;
+  updatedTime: Date;
+  isActive: boolean;
+  metadata?: any;
 }
 
 export interface CreateConfigRequest {
-  name: string;
+  appId: string;
+  userId: string;
   componentType: string;
   componentSubType?: string;
-  config: Record<string, any>;
+  name: string;
+  description?: string;
+  icon?: string;
+  config: any;
   settings?: ConfigVersion[];
-  userId?: string;
-  createdBy?: string;
+  activeSetting?: string;
+  tags?: string[];
+  category?: string;
+  isShared?: boolean;
+  isDefault?: boolean;
+  isLocked?: boolean;
+  createdBy: string;
+  lastUpdatedBy: string;
 }
 
 export interface UpdateConfigRequest {
@@ -47,7 +84,7 @@ export interface UpdateConfigRequest {
 }
 
 class ConfigurationService {
-  private baseUrl = '/api/v1/configurations';
+  private baseUrl = '/configurations';
 
   /**
    * Get configuration by ID

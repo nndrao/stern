@@ -43,6 +43,13 @@ export enum OpenFinCustomEvents {
    * Broadcast when data provider connects/disconnects
    */
   PROVIDER_STATUS = 'stern-platform:provider-status',
+
+  /**
+   * AppData updated event
+   * Broadcast when AppData provider variables are updated
+   * Ensures all windows/views have latest variable values
+   */
+  APPDATA_UPDATED = 'stern-platform:appdata-updated',
 }
 
 // ============================================================================
@@ -112,6 +119,17 @@ export interface ProviderStatusEvent {
   message?: string;
 }
 
+/**
+ * AppData updated event payload
+ */
+export interface AppDataUpdatedEvent {
+  providerId: string;               // Which AppData provider changed
+  providerName: string;             // Name of the provider (for template syntax)
+  variables: Record<string, any>;  // All current variables
+  updatedKeys: string[];           // Which keys changed (for optimization)
+  timestamp: number;
+}
+
 // ============================================================================
 // Type-Safe Event Map
 // ============================================================================
@@ -126,6 +144,7 @@ export interface OpenFinEventMap {
   [OpenFinCustomEvents.DATA_REFRESH]: DataRefreshEvent;
   [OpenFinCustomEvents.BLOTTER_UPDATE]: BlotterUpdateEvent;
   [OpenFinCustomEvents.PROVIDER_STATUS]: ProviderStatusEvent;
+  [OpenFinCustomEvents.APPDATA_UPDATED]: AppDataUpdatedEvent;
 }
 
 // ============================================================================

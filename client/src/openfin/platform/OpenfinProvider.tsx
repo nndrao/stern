@@ -9,6 +9,7 @@ import * as dock from './openfinDock';
 import { initializeBaseUrlFromManifest, buildUrl } from '../utils/openfinUtils';
 import { logger } from '@/utils/logger';
 import { dockConfigService } from '@/services/dockConfigService';
+import { viewManager } from '@/services/viewManager';
 
 // Placeholder components for future features
 const SettingsPanel = () => (
@@ -178,6 +179,16 @@ export default function Provider() {
         try {
           // Add a small delay to ensure workspace APIs are fully initialized
           await new Promise(resolve => setTimeout(resolve, 500));
+
+          // Initialize View Manager for persistent view instance tracking
+          try {
+            logger.info('Initializing View Manager...', undefined, 'Provider');
+            await viewManager.initialize();
+            logger.info('View Manager initialized successfully', undefined, 'Provider');
+          } catch (viewManagerError) {
+            logger.error('Failed to initialize View Manager', viewManagerError, 'Provider');
+            // Continue anyway - view manager is not critical for platform operation
+          }
 
           // Check if Dock is available
           if (dock.isDockAvailable()) {
