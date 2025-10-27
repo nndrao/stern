@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Database, Wifi, Globe, Zap, TestTube, Star, Search } from 'lucide-react';
 
-import { useDataProviders } from '@/hooks/useDataProviderQueries';
+import { useDataProviders } from '@/hooks/api/useDataProviderQueries';
 import { ProviderType, DataProviderConfig } from '@stern/shared-types';
 
 interface ProviderListProps {

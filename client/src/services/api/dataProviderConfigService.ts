@@ -5,7 +5,7 @@
  * Providers are stored as UnifiedConfig with componentType='datasource'
  */
 
-import { apiClient } from '@/utils/apiClient';
+import { apiClient } from '@/utils/api/apiClient';
 import {
   UnifiedConfig,
   COMPONENT_TYPES,

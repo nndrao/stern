@@ -4,7 +4,7 @@
  */
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import { buildUrl } from '../openfin/utils/openfinUtils';
+import { buildUrl } from '@/openfin/utils/openfinUtils';
 import { logger } from '@/utils/logger';
 import { getPlatformContext } from '@/openfin/utils/platformContext';
 

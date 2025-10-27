@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/ui/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { ConnectionTab } from './ConnectionTab';
 import { FieldsTab } from './FieldsTab';
@@ -302,7 +302,7 @@ export function StompConfigurationForm({ name, config, onChange, onNameChange, o
 
     try {
       const { StompDatasourceProvider } = await import('@/services/providers/StompDatasourceProvider');
-      const { templateResolver } = await import('@/services/template/templateResolver');
+      const { templateResolver } = await import('@/services/templateResolver');
       const { v4: uuidv4 } = await import('uuid');
 
       // Generate session ID for consistent UUID resolution

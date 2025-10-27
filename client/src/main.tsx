@@ -3,8 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App.tsx';
-import { ThemeProvider } from './components/theme-provider';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { ThemeProvider } from './components/shared/theme-provider';
+import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { SternPlatformProvider } from './providers/SternPlatformProvider';
 import './index.css';
 
@@ -20,7 +20,7 @@ const queryClient = new QueryClient({
 });
 
 const PlatformProvider = lazy(() => import('./openfin/platform/OpenfinProvider'));
-const DemoComponent = lazy(() => import('./components/custom-components/DemoComponent'));
+const DemoComponent = lazy(() => import('./components/DemoComponent'));
 
 // Loading fallback component
 const LoadingFallback = () => (

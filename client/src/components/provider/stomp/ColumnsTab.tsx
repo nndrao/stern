@@ -12,8 +12,8 @@ import { AgGridReact } from 'ag-grid-react';
 import { Plus, Trash2 } from 'lucide-react';
 import { FieldNode } from './FieldSelector';
 import { ColumnDefinition } from '@stern/shared-types';
-import { sternAgGridTheme } from '@/utils/agGridTheme';
-import { useAgGridTheme } from '@/hooks/useAgGridTheme';
+import { sternAgGridTheme } from '@/utils/grid/agGridTheme';
+import { useAgGridTheme } from '@/hooks/ui/useAgGridTheme';
 
 // Register AG-Grid modules
 ModuleRegistry.registerModules([AllEnterpriseModule]);

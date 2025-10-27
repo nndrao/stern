@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/ui/use-toast';
 
 import {
   useCreateDataProvider,
@@ -24,7 +24,7 @@ import {
   useDeleteDataProvider,
   useCloneDataProvider,
   useSetDefaultProvider
-} from '@/hooks/useDataProviderQueries';
+} from '@/hooks/api/useDataProviderQueries';
 import {
   ProviderType,
   PROVIDER_TYPES,
@@ -35,8 +35,8 @@ import {
   MockProviderConfig,
   DataProviderConfig
 } from '@stern/shared-types';
-import { StompConfigurationForm } from './stomp/StompConfigurationForm';
-import { KeyValueEditor } from './KeyValueEditor';
+import { StompConfigurationForm } from '../stomp/StompConfigurationForm';
+import { KeyValueEditor } from '../editors/KeyValueEditor';
 
 interface ProviderFormProps {
   userId: string;

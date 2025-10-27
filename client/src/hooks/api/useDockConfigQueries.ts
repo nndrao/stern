@@ -5,9 +5,9 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DockConfiguration } from '@/openfin/types/dockConfig';
-import { dockConfigService } from '@/services/dockConfigService';
+import { dockConfigService } from '@/services/api/dockConfigService';
 import { logger } from '@/utils/logger';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/ui/use-toast';
 
 /**
  * Query key factory for dock configuration

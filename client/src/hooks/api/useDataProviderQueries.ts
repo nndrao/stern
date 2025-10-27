@@ -5,9 +5,9 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DataProviderConfig } from '@stern/shared-types';
-import { dataProviderConfigService } from '@/services/dataProviderConfigService';
+import { dataProviderConfigService } from '@/services/api/dataProviderConfigService';
 import { logger } from '@/utils/logger';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/ui/use-toast';
 
 /**
  * Query key factory for data providers

@@ -7,11 +7,11 @@
  * Based on AGV3 production pattern where view instances are registered and tracked.
  */
 
-import { apiClient } from '@/utils/apiClient';
+import { apiClient } from '@/utils/api/apiClient';
 import { logger } from '@/utils/logger';
 import { generateViewId, buildViewUrl, buildViewName } from '@/openfin/utils/viewUtils';
 import { getAppId, getUserId } from '@/openfin/utils/platformContext';
-import { UnifiedConfig } from './configurationService';
+import { UnifiedConfig } from './api/configurationService';
 
 /**
  * View instance metadata

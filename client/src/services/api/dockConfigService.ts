@@ -3,7 +3,7 @@
  * API service for managing dock configurations
  */
 
-import { apiClient, apiCall } from '@/utils/apiClient';
+import { apiClient, apiCall } from '@/utils/api/apiClient';
 import { DockConfiguration, DockConfigFilter, DockMenuItem, DockApplicationsMenuItemsConfig } from '@/openfin/types/dockConfig';
 import { COMPONENT_TYPES, COMPONENT_SUBTYPES } from '@stern/shared-types';
 import { logger } from '@/utils/logger';

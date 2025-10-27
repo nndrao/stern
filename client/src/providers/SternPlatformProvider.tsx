@@ -30,8 +30,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { appDataService } from '@/services/appDataService';
-import { configService } from '@/services/configurationService';
-import { dataProviderConfigService } from '@/services/dataProviderConfigService';
+import { configService } from '@/services/api/configurationService';
+import { dataProviderConfigService } from '@/services/api/dataProviderConfigService';
 import { getApiUrl } from '@/openfin/utils/platformContext';
 import { OpenFinCustomEvents, OpenFinEventMap } from '@/openfin/types/openfinEvents';
 import { logger } from '@/utils/logger';

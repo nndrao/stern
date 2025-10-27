@@ -11,7 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/ui/use-toast';
 import {
   Save,
   Download,
@@ -25,14 +25,14 @@ import {
   Settings2
 } from 'lucide-react';
 
-import { TreeView } from './TreeView';
-import { PropertiesPanel } from './PropertiesPanel';
-import { IconPicker } from './IconPicker';
+import { TreeView } from '../TreeView';
+import { PropertiesPanel } from '../PropertiesPanel';
+import { IconPicker } from '../editors/IconPicker';
 import { DockConfiguration, DockMenuItem, createMenuItem, validateDockConfiguration, createDockConfiguration } from '@/openfin/types/dockConfig';
-import { useDockConfig, useSaveDockConfig } from '@/hooks/useDockConfigQueries';
+import { useDockConfig, useSaveDockConfig } from '@/hooks/api/useDockConfigQueries';
 import { useOpenFinDock } from '@/openfin/hooks/useOpenfinWorkspace';
 import { useOpenfinTheme } from '@/openfin/hooks/useOpenfinTheme';
-import '@/utils/testApi'; // Import test utility for debugging
+import '@/test/helpers/testApi'; // Import test utility for debugging
 import { logger } from '@/utils/logger';
 import { COMPONENT_SUBTYPES } from '@stern/shared-types';
 

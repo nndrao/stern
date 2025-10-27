@@ -9,8 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Plus, Database, ChevronRight, Settings } from 'lucide-react';
 
 import { useOpenfinTheme } from '@/openfin/hooks/useOpenfinTheme';
-import { ProviderList } from './ProviderList';
-import { ProviderForm } from './ProviderForm';
+import { ProviderList } from '../ProviderList';
+import { ProviderForm } from '../forms/ProviderForm';
 import { TypeSelectionDialog } from './TypeSelectionDialog';
 import { DataProviderConfig, getDefaultProviderConfig, ProviderType } from '@stern/shared-types';
 import { logger } from '@/utils/logger';

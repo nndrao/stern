@@ -5,7 +5,7 @@
 
 import { useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import { setAgGridThemeMode } from '@/utils/agGridTheme';
+import { setAgGridThemeMode } from '@/utils/grid/agGridTheme';
 
 /**
  * Hook to sync AG Grid theme with the application theme

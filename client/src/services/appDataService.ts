@@ -16,14 +16,12 @@
  * - In React: appData.get('AppData.ProviderName.variableName')
  */
 
-import { TemplateResolver } from './template/templateResolver';
+import { TemplateResolver } from './templateResolver';
 import { OpenFinCustomEvents } from '@/openfin/types/openfinEvents';
 import { logger } from '@/utils/logger';
-import { dataProviderConfigService } from './dataProviderConfigService';
+import { dataProviderConfigService } from './api/dataProviderConfigService';
 import {
   DataProviderConfig,
-  AppDataProviderConfig,
-  AppDataVariable,
   PROVIDER_TYPES
 } from '@stern/shared-types';
 

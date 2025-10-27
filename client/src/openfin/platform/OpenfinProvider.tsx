@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { init } from '@openfin/workspace-platform';
 import { useOpenfinTheme } from '../hooks/useOpenfinTheme';
-import { TopTabBar } from '@/components/provider/TopTabBar';
-import { DockConfigEditor } from '@/components/provider/DockConfigEditor';
-import { DataProviderEditor } from '@/components/provider/DataProviderEditor';
+import { TopTabBar } from '@/components/provider/navigation/TopTabBar';
+import { DockConfigEditor } from '@/components/provider/forms/DockConfigEditor';
+import { DataProviderEditor } from '@/components/provider/editors/DataProviderEditor';
 import { Toaster } from '@/components/ui/toaster';
 import * as dock from './openfinDock';
 import { initializeBaseUrlFromManifest, buildUrl } from '../utils/openfinUtils';
 import { logger } from '@/utils/logger';
-import { dockConfigService } from '@/services/dockConfigService';
+import { dockConfigService } from '@/services/api/dockConfigService';
 import { viewManager } from '@/services/viewManager';
 
 // Placeholder components for future features

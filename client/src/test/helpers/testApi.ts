@@ -2,7 +2,7 @@
  * Simple API test utility
  */
 
-import { apiClient } from './apiClient';
+import { apiClient } from '@/utils/api/apiClient';
 import { logger } from '@/utils/logger';
 
 export async function testApiConnection() {
