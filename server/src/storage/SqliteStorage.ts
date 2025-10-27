@@ -84,6 +84,7 @@ export class SqliteStorage implements IConfigurationStorage {
       CREATE INDEX IF NOT EXISTS idx_updated ON configurations(lastUpdated);
       CREATE INDEX IF NOT EXISTS idx_deleted ON configurations(deletedAt);
       CREATE INDEX IF NOT EXISTS idx_name ON configurations(name);
+      CREATE INDEX IF NOT EXISTS idx_composite_lookup ON configurations(userId, componentType, componentSubType, name);
     `);
   }
 
@@ -132,11 +133,30 @@ export class SqliteStorage implements IConfigurationStorage {
   }
 
   async findById(configId: string, includeDeleted = false): Promise<UnifiedConfig | null> {
-    const whereClause = includeDeleted 
-      ? 'WHERE configId = ?' 
+    const whereClause = includeDeleted
+      ? 'WHERE configId = ?'
       : 'WHERE configId = ? AND deletedAt IS NULL';
     const stmt = this.db.prepare(`SELECT * FROM configurations ${whereClause}`);
     const row = stmt.get(configId);
+    return row ? this.deserializeConfig(row) : null;
+  }
+
+  async findByCompositeKey(
+    userId: string,
+    componentType: string,
+    name: string,
+    componentSubType?: string
+  ): Promise<UnifiedConfig | null> {
+    const whereClause = componentSubType
+      ? 'WHERE userId = ? AND componentType = ? AND componentSubType = ? AND name = ? AND deletedAt IS NULL'
+      : 'WHERE userId = ? AND componentType = ? AND name = ? AND deletedAt IS NULL';
+
+    const params = componentSubType
+      ? [userId, componentType, componentSubType, name]
+      : [userId, componentType, name];
+
+    const stmt = this.db.prepare(`SELECT * FROM configurations ${whereClause}`);
+    const row = stmt.get(...params);
     return row ? this.deserializeConfig(row) : null;
   }
 

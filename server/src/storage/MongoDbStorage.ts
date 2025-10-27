@@ -58,17 +58,18 @@ export class MongoDbStorage implements IConfigurationStorage {
       this.collection.createIndex({ appId: 1, userId: 1 }),
       this.collection.createIndex({ componentType: 1, componentSubType: 1 }),
       this.collection.createIndex({ userId: 1, deletedAt: 1 }),
-      
+      this.collection.createIndex({ userId: 1, componentType: 1, componentSubType: 1, name: 1 }),
+
       // Single field indexes
       this.collection.createIndex({ configId: 1 }, { unique: true }),
       this.collection.createIndex({ creationTime: -1 }),
       this.collection.createIndex({ lastUpdated: -1 }),
       this.collection.createIndex({ deletedAt: 1 }, { sparse: true }),
       this.collection.createIndex({ name: 1 }),
-      
+
       // Text search index
-      this.collection.createIndex({ 
-        name: 'text', 
+      this.collection.createIndex({
+        name: 'text',
         description: 'text',
         tags: 'text'
       })
@@ -92,7 +93,28 @@ export class MongoDbStorage implements IConfigurationStorage {
     if (!includeDeleted) {
       filter.deletedAt = { $exists: false };
     }
-    
+
+    const result = await this.collection.findOne(filter);
+    return result ? this.sanitizeDocument(result) : null;
+  }
+
+  async findByCompositeKey(
+    userId: string,
+    componentType: string,
+    name: string,
+    componentSubType?: string
+  ): Promise<UnifiedConfig | null> {
+    const filter: any = {
+      userId,
+      componentType,
+      name,
+      deletedAt: { $exists: false }
+    };
+
+    if (componentSubType) {
+      filter.componentSubType = componentSubType;
+    }
+
     const result = await this.collection.findOne(filter);
     return result ? this.sanitizeDocument(result) : null;
   }

@@ -33,6 +33,45 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
     })
   );
 
+  /**
+   * GET /api/v1/configurations/lookup
+   * Find configuration by composite key (userId, componentType, name)
+   * Query params: userId, componentType, name, componentSubType (optional)
+   */
+  router.get('/lookup',
+    asyncHandler(async (req: Request, res: Response) => {
+      const { userId, componentType, name, componentSubType } = req.query;
+
+      if (!userId || !componentType || !name) {
+        return res.status(400).json({
+          error: 'Missing required query parameters: userId, componentType, name'
+        });
+      }
+
+      logger.info('Looking up configuration by composite key', {
+        userId,
+        componentType,
+        componentSubType,
+        name
+      });
+
+      const result = await configService.findConfigurationByCompositeKey(
+        userId as string,
+        componentType as string,
+        name as string,
+        componentSubType as string | undefined
+      );
+
+      if (!result) {
+        return res.status(404).json({
+          error: 'Configuration not found'
+        });
+      }
+
+      return res.json(result);
+    })
+  );
+
   // Bulk Operations
 
   /**

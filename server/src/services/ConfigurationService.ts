@@ -90,16 +90,64 @@ export class ConfigurationService {
   async findConfigurationById(configId: string): Promise<UnifiedConfig | null> {
     try {
       const result = await this.storage.findById(configId);
-      
+
       if (result) {
         logger.debug('Configuration found', { configId, componentType: result.componentType });
       } else {
         logger.debug('Configuration not found', { configId });
       }
-      
+
       return result;
     } catch (error) {
       logger.error('Error finding configuration by ID', { configId, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Find configuration by composite key (userId, componentType, name, componentSubType)
+   * More efficient than fetching all and filtering client-side
+   */
+  async findConfigurationByCompositeKey(
+    userId: string,
+    componentType: string,
+    name: string,
+    componentSubType?: string
+  ): Promise<UnifiedConfig | null> {
+    try {
+      const result = await this.storage.findByCompositeKey(
+        userId,
+        componentType,
+        name,
+        componentSubType
+      );
+
+      if (result) {
+        logger.debug('Configuration found by composite key', {
+          userId,
+          componentType,
+          componentSubType,
+          name,
+          configId: result.configId
+        });
+      } else {
+        logger.debug('Configuration not found by composite key', {
+          userId,
+          componentType,
+          componentSubType,
+          name
+        });
+      }
+
+      return result;
+    } catch (error) {
+      logger.error('Error finding configuration by composite key', {
+        userId,
+        componentType,
+        componentSubType,
+        name,
+        error
+      });
       throw error;
     }
   }

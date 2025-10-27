@@ -16,9 +16,15 @@ export interface IConfigurationStorage {
   // Basic CRUD Operations
   create(config: UnifiedConfig): Promise<UnifiedConfig>;
   findById(configId: string, includeDeleted?: boolean): Promise<UnifiedConfig | null>;
+  findByCompositeKey(
+    userId: string,
+    componentType: string,
+    name: string,
+    componentSubType?: string
+  ): Promise<UnifiedConfig | null>;
   update(configId: string, updates: Partial<UnifiedConfig>): Promise<UnifiedConfig>;
   delete(configId: string): Promise<boolean>;
-  
+
   // Advanced Operations
   clone(sourceConfigId: string, newName: string, userId: string): Promise<UnifiedConfig>;
   
